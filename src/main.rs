@@ -7,6 +7,7 @@ enum Message {
     ValueChange(f64),
     NewValue(f64),
 }
+
 use iced::widget::{button, canvas, column, row, slider, text, Column};
 use iced::{mouse, Color, Rectangle, Renderer, Theme};
 impl Counter {
