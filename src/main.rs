@@ -24,8 +24,9 @@ impl Counter {
             slider(-100.0..=100.0, self.value as f64, Message::NewValue),
             canvas(Graph {
                 value: self.value as f32,
-                x_size: self.value as f32 * 2.0,
-                y_size: self.value as f32 * 2.0
+                x_size: self.value as usize * 2,
+                y_size: self.value as usize* 2,
+				values: vec![1.0,1.0]
             }),
         ]
     }
@@ -39,8 +40,19 @@ impl Counter {
 
 struct Graph {
     value: f32,
-    x_size: f32,
-    y_size: f32,
+    x_size: usize,
+    y_size: usize,
+	values: Vec<f32>
+}
+impl Graph {
+	fn new(values: Vec<f32>) -> Graph{
+		Graph{
+			value: 0.0, //remove once have a graph
+			x_size: values.len(),
+			y_size: values.clone().into_iter().reduce(f32::max).unwrap() as usize,
+			values: values
+		}
+	}
 }
 impl<Message> canvas::Program<Message> for Graph {
     type State = ();
@@ -52,7 +64,7 @@ impl<Message> canvas::Program<Message> for Graph {
         bounds: Rectangle,
         _cursor: mouse::Cursor,
     ) -> Vec<canvas::Geometry> {
-        let mut frame = canvas::Frame::new(renderer, iced::Size::new(self.x_size, self.y_size));
+        let mut frame = canvas::Frame::new(renderer, iced::Size::new(self.x_size as f32, self.y_size as f32));
         let graph = canvas::Path::circle(frame.center(), self.value);
         frame.fill(&graph, Color::BLACK);
         vec![frame.into_geometry()]
