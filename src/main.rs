@@ -22,13 +22,12 @@ impl Counter {
                 button("-").on_press(Message::ValueChange(-1.0)),
                 button("/").on_press(Message::ValueChange((self.value as f64) * -0.5)),
             ],
-            slider(-100.0..=100.0, self.value as f64, Message::NewValue),
-            canvas(Graph {
-                value: self.value as f32,
-                x_size: self.value as usize * 2,
-                y_size: self.value as usize* 2,
-				values: vec![1.0,1.0]
-            }),
+            slider(
+                0.0..=(self.value as f64) * 1.5 + 10.0,
+                self.value as f64,
+                Message::NewValue
+       		),
+			canvas(Graph::new((0..100).collect())),
         ]
     }
     fn update(&mut self, message: Message) {
@@ -40,20 +39,18 @@ impl Counter {
 }
 
 struct Graph {
-    value: f32,
     x_size: usize,
     y_size: usize,
-	values: Vec<f32>
+    values: Vec<f32>,
 }
 impl Graph {
-	fn new(values: Vec<f32>) -> Graph{
-		Graph{
-			value: 0.0, //remove once have a graph
-			x_size: values.len(),
-			y_size: values.clone().into_iter().reduce(f32::max).unwrap() as usize,
-			values: values
-		}
-	}
+    fn new(values: Vec<f32>) -> Graph {
+        Graph {
+            x_size: values.len(),
+            y_size: values.clone().into_iter().reduce(f32::max).unwrap() as usize,
+            values: values,
+        }
+    }
 }
 impl<Message> canvas::Program<Message> for Graph {
     type State = ();
@@ -62,16 +59,35 @@ impl<Message> canvas::Program<Message> for Graph {
         _state: &(),
         renderer: &Renderer,
         _theme: &Theme,
-        bounds: Rectangle,
+        _bounds: Rectangle,
         _cursor: mouse::Cursor,
     ) -> Vec<canvas::Geometry> {
-        let mut frame = canvas::Frame::new(renderer, iced::Size::new(self.x_size as f32, self.y_size as f32));
-        let graph = canvas::Path::circle(frame.center(), self.value);
-        frame.fill(&graph, Color::BLACK);
+        let mut frame = canvas::Frame::new(
+            renderer,
+            iced::Size::new(self.x_size as f32, self.y_size as f32),
+        );
+        let style = canvas::Stroke {
+            line_cap: canvas::LineCap::Butt,
+            line_dash: canvas::LineDash {
+                offset: 0,
+                segments: &[0.0],
+            },
+            line_join: canvas::LineJoin::Round,
+            width: 1.0,
+            style: canvas::Style::Solid(Color::BLACK),
+        };
+        for i in 1..self.x_size {
+            frame.stroke(
+                &canvas::Path::line(
+                    iced::Point::new((i - 1) as f32, self.values[i - 1]),
+                    iced::Point::new((i) as f32, self.values[i]),
+                ),
+                style,
+            );
+        }
         vec![frame.into_geometry()]
     }
 }
-
 fn main() {
     let _ = iced::run("A cool counter", Counter::update, Counter::view);
 }
