@@ -13,7 +13,7 @@ use iced::{mouse, Color, Rectangle, Renderer, Theme};
 impl Counter {
     fn view(&self) -> Column<Message> {
         column![
-            text(self.value).size(100),
+            /*text(self.value).size(100),
             row![
                 button("+").on_press(Message::ValueChange(1.0)),
                 button("*").on_press(Message::ValueChange(self.value as f64)),
@@ -26,8 +26,8 @@ impl Counter {
                 0.0..=(self.value as f64) * 1.5 + 10.0,
                 self.value as f64,
                 Message::NewValue
-       		),
-			canvas(Graph::new((0..100).collect())),
+       		),*/
+			canvas(Graph::new((1..100).map(|x| x as f32).collect())),
         ]
     }
     fn update(&mut self, message: Message) {
@@ -42,13 +42,15 @@ struct Graph {
     x_size: usize,
     y_size: usize,
     values: Vec<f32>,
+	scale: f32,
 }
 impl Graph {
     fn new(values: Vec<f32>) -> Graph {
         Graph {
-            x_size: values.len(),
-            y_size: values.clone().into_iter().reduce(f32::max).unwrap() as usize,
+            x_size: values.len()*10,
+            y_size: values.clone().into_iter().reduce(f32::max).unwrap() as usize * 10,
             values: values,
+			scale: 10.0,
         }
     }
 }
@@ -70,21 +72,21 @@ impl<Message> canvas::Program<Message> for Graph {
             line_cap: canvas::LineCap::Butt,
             line_dash: canvas::LineDash {
                 offset: 0,
-                segments: &[0.0],
+                segments: &[1.0,0.0],
             },
             line_join: canvas::LineJoin::Round,
-            width: 1.0,
+            width: 10.0,
             style: canvas::Style::Solid(Color::BLACK),
         };
-        for i in 1..self.x_size {
+        for i in 1..self.values.len() {
             frame.stroke(
                 &canvas::Path::line(
-                    iced::Point::new((i - 1) as f32, self.values[i - 1]),
-                    iced::Point::new((i) as f32, self.values[i]),
+                    iced::Point::new((i - 1) as f32 * self.scale, self.values[i - 1] * self.scale),
+                    iced::Point::new((i) as f32 * self.scale, self.values[i] * self.scale),
                 ),
                 style,
             );
-        }
+    	}    
         vec![frame.into_geometry()]
     }
 }
