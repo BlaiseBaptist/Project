@@ -1,30 +1,46 @@
-#[derive(Default)]
-struct Counter {
-    value: usize,
+use iced::widget::{canvas, pane_grid, PaneGrid};
+use iced::{mouse, Color, Rectangle, Renderer, Theme};
+
+struct App {
+    panes: pane_grid::State<Pane>,
+}
+#[derive(Debug, Clone, Copy)]
+enum Pane {
+    Graph,
 }
 #[derive(Debug, Clone, Copy)]
 enum Message {
-    ValueChange(isize),
+    Resize(pane_grid::ResizeEvent),
 }
 
-use iced::widget::canvas::path::lyon_path::geom::euclid;
-use iced::widget::{button, canvas, column, row, text, Column};
-use iced::{mouse, Color, Rectangle, Renderer, Theme};
-impl Counter {
-    fn view(&self) -> Column<Message> {
-        column![canvas(Graph::new(function(100)))]
+impl App {
+    fn view(&self) -> PaneGrid<Message> {
+        pane_grid(&self.panes, |_pane, state, _minimized| {
+            pane_grid::Content::<Message>::new(match state {
+                Pane::Graph => canvas(Graph::new(function(100))),
+            })
+        }).on_resize(10, Message::Resize)
+        .into()
     }
     fn update(&mut self, message: Message) {
         match message {
-            Message::ValueChange(v) => self.value = self.value.overflowing_add_signed(v).0,
+            Message::Resize(re) => println!("{:?}",re.ratio),
         }
     }
 }
-
+impl Default for App {
+    fn default() -> App {
+        App {
+            panes: pane_grid::State::new(Pane::Graph).0,
+        }
+    }
+}
 struct Graph {
     values: Vec<f32>,
     x_scale: f32,
     y_scale: f32,
+	x_shift: f32,
+	y_shift: f32,
 }
 impl Graph {
     fn new(values: Vec<f32>) -> Graph {
@@ -32,6 +48,8 @@ impl Graph {
             values: values,
             x_scale: 1.0,
             y_scale: 10.0,
+			x_shift: 10.0,
+			y_shift: 10.0,
         }
     }
 }
@@ -51,8 +69,8 @@ impl<Message> canvas::Program<Message> for Graph {
             0.0,
             0.0,
             self.y_scale,
-            0.0,
-            0.0,
+            self.x_shift,
+            self.y_shift,
         );
         let mut lines = canvas::path::Builder::new();
         lines.move_to(iced::Point::new(0.0, self.values[0]));
@@ -81,5 +99,5 @@ fn function(x_size: usize) -> Vec<f32> {
         .collect()
 }
 fn main() {
-    let _ = iced::run("A cool counter", Counter::update, Counter::view);
+    let _ = iced::run("A cool counter", App::update, App::view);
 }
