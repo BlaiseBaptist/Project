@@ -28,15 +28,19 @@ impl App {
     fn view(&self) -> Container<Message> {
         let grid = pane_grid(&self.panes, |_pane, state, _minimized| {
             pane_grid::Content::<Message>::new(match state {
-                Pane::Graph => container(canvas(Graph::new(function(1000))).width(Fill).height(Fill))
-                    .padding(10)
-                    .style(|_| { style::pane_focused }(&Theme::Dracula)),
+                Pane::Graph => {
+                    container(canvas(Graph::new(function(10000))).width(Fill).height(Fill))
+                        .padding(10)
+                        .style(|_| { style::graph }(&THEME))
+                }
             })
         })
+		.spacing(10)
         .on_resize(10, Message::Resize)
         .on_drag(Message::Move);
         container(grid)
-            .style(|_| { style::title_bar_active }(&Theme::Dracula))
+            .style(|_| { style::app_s }(&THEME))
+			.padding(10)
             .into()
     }
     fn update(&mut self, message: Message) {
@@ -60,9 +64,10 @@ struct Graph {
 }
 impl Graph {
     fn new(values: Vec<f32>) -> Graph {
+        //probably make the values positive or enforce that
         Graph {
             values: values,
-            x_scale: 2.0,
+            x_scale: 0.2,
             y_scale: 20.0,
             x_shift: 0.0,
             y_shift: 0.0,
@@ -75,7 +80,7 @@ impl<Message> canvas::Program<Message> for Graph {
         &self,
         _state: &(),
         renderer: &Renderer,
-        _theme: &Theme,
+        theme: &Theme,
         bounds: Rectangle,
         _cursor: mouse::Cursor,
     ) -> Vec<canvas::Geometry> {
@@ -103,7 +108,7 @@ impl<Message> canvas::Program<Message> for Graph {
                 },
                 line_join: canvas::LineJoin::Bevel,
                 width: 1.0,
-                style: canvas::Style::Solid(Color::WHITE),
+                style: canvas::Style::Solid(theme.extended_palette().background.weak.text),
             },
         );
         vec![frame.into_geometry()]
@@ -113,18 +118,7 @@ impl<Message> canvas::Program<Message> for Graph {
 mod style {
     use iced::widget::container;
     use iced::{Border, Theme};
-
-    pub fn title_bar_active(theme: &Theme) -> container::Style {
-        let palette = theme.extended_palette();
-
-        container::Style {
-            text_color: Some(palette.background.strong.text),
-            background: Some(palette.background.strong.color.into()),
-            ..Default::default()
-        }
-    }
-
-    pub fn title_bar_focused(theme: &Theme) -> container::Style {
+    pub fn text(theme: &Theme) -> container::Style {
         let palette = theme.extended_palette();
 
         container::Style {
@@ -133,24 +127,8 @@ mod style {
             ..Default::default()
         }
     }
-
-    pub fn pane_active(theme: &Theme) -> container::Style {
+    pub fn graph(theme: &Theme) -> container::Style {
         let palette = theme.extended_palette();
-
-        container::Style {
-            background: Some(palette.background.weak.color.into()),
-            border: Border {
-                width: 2.0,
-                color: palette.background.strong.color,
-                ..Border::default()
-            },
-            ..Default::default()
-        }
-    }
-
-    pub fn pane_focused(theme: &Theme) -> container::Style {
-        let palette = theme.extended_palette();
-
         container::Style {
             background: Some(palette.background.weak.color.into()),
             border: Border {
@@ -161,12 +139,25 @@ mod style {
             ..Default::default()
         }
     }
+    pub fn app_s(theme: &Theme) -> container::Style {
+        let palette = theme.extended_palette();
+        container::Style {
+            background: Some(palette.background.weak.color.into()),
+            border: Border {
+                width: 1.0,
+                color: palette.background.strong.color,
+                ..Border::default()
+            },
+            ..Default::default()
+        }
+    }
 }
 fn function(x_size: usize) -> Vec<f32> {
     (0..x_size)
-        .map(|x| ((x  as f32 * std::f32::consts::PI * 0.05).sin() + 1.0))
+        .map(|x| ((x as f32 * 0.01).sin() + 1.0))
         .collect()
 }
+const THEME: Theme = Theme::Dark;
 fn main() {
-    let _ = iced::run("Graph", App::update, App::view);
+    let _ = iced::application("Graph", App::update, App::view).run();
 }
