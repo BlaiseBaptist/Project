@@ -1,17 +1,21 @@
 use iced::widget::pane_grid::Configuration;
-use iced::widget::{canvas, container, pane_grid, Container};
-use iced::{mouse, Color, Fill, Rectangle, Renderer, Theme};
+use iced::widget::{canvas, container, pane_grid, text, Container, slider};
+use iced::{mouse, Fill, Rectangle, Renderer, Theme};
 struct App {
     panes: pane_grid::State<Pane>,
+    x_shift: f32,
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum Pane {
     Graph,
+    Text(String),
+    Slider,
 }
 #[derive(Debug, Clone, Copy)]
 enum Message {
     Resize(pane_grid::ResizeEvent),
     Move(pane_grid::DragEvent),
+    XShift(f32),
 }
 
 impl App {
@@ -20,33 +24,53 @@ impl App {
             axis: pane_grid::Axis::Vertical,
             ratio: 0.5,
             a: Box::new(Configuration::Pane(Pane::Graph)),
-            b: Box::new(Configuration::Pane(Pane::Graph)),
+            b: Box::new(Configuration::Split {
+                axis: pane_grid::Axis::Horizontal,
+                ratio: 0.5,
+                a: Box::new(Configuration::Pane(Pane::Slider)),
+                b: Box::new(Configuration::Pane(Pane::Text("moving panes with the things that will be done on them pretty cool I think".to_string()))),
+            }),
         };
         let g_state = pane_grid::State::with_configuration(config);
-        App { panes: g_state }
+        App { panes: g_state, x_shift: 0.0 }
     }
     fn view(&self) -> Container<Message> {
         let grid = pane_grid(&self.panes, |_pane, state, _minimized| {
+            let title_bar = pane_grid::TitleBar::new(container(text(" Title"))).style(style::title);
             pane_grid::Content::<Message>::new(match state {
-                Pane::Graph => {
-                    container(canvas(Graph::new(function(10000))).width(Fill).height(Fill))
-                        .padding(10)
-                        .style(|_| { style::graph }(&THEME))
-                }
+                Pane::Graph => container(
+                    canvas(Graph::new(function(10000), self.x_shift))
+                        .width(Fill)
+                        .height(Fill),
+                )
+                .padding(10)
+                .style(style::graph),
+                Pane::Text(t) => container(text(t))
+                    .style(style::text)
+                    .padding(10)
+                    .width(Fill)
+                    .height(Fill),
+                Pane::Slider => container(slider(0.0..=100.0, self.x_shift, Message::XShift))
+                    .style(style::graph)
+                    .padding(10)
+                    .width(Fill)
+                    .height(Fill),
             })
+            .title_bar(title_bar)
         })
-		.spacing(10)
+        .spacing(10)
         .on_resize(10, Message::Resize)
         .on_drag(Message::Move);
-        container(grid)
-            .style(|_| { style::app_s }(&THEME))
-			.padding(10)
-            .into()
+        container(grid).style(style::app_s).padding(10).into()
     }
     fn update(&mut self, message: Message) {
         match message {
             Message::Resize(e) => self.panes.resize(e.split, e.ratio),
-            Message::Move(_e) => todo!(),
+            Message::Move(pane_grid::DragEvent::Dropped { pane, target }) => {
+                self.panes.drop(pane, target)
+            }
+            Message::Move(_) => {}
+            Message::XShift(s) => self.x_shift = s,
         }
     }
 }
@@ -63,13 +87,13 @@ struct Graph {
     y_shift: f32,
 }
 impl Graph {
-    fn new(values: Vec<f32>) -> Graph {
+    fn new(values: Vec<f32>, x_shift: f32) -> Graph {
         //probably make the values positive or enforce that
         Graph {
             values: values,
             x_scale: 0.2,
             y_scale: 20.0,
-            x_shift: 0.0,
+            x_shift: x_shift,
             y_shift: 0.0,
         }
     }
@@ -80,7 +104,7 @@ impl<Message> canvas::Program<Message> for Graph {
         &self,
         _state: &(),
         renderer: &Renderer,
-        theme: &Theme,
+        _theme: &Theme,
         bounds: Rectangle,
         _cursor: mouse::Cursor,
     ) -> Vec<canvas::Geometry> {
@@ -90,7 +114,7 @@ impl<Message> canvas::Program<Message> for Graph {
             0.0,
             0.0,
             self.y_scale,
-            self.x_shift,
+            -self.x_shift,
             self.y_shift,
         );
         let mut lines = canvas::path::Builder::new();
@@ -108,7 +132,7 @@ impl<Message> canvas::Program<Message> for Graph {
                 },
                 line_join: canvas::LineJoin::Bevel,
                 width: 1.0,
-                style: canvas::Style::Solid(theme.extended_palette().background.weak.text),
+                style: canvas::Style::Solid(style::graph(&THEME).text_color.unwrap()),
             },
         );
         vec![frame.into_geometry()]
@@ -120,16 +144,34 @@ mod style {
     use iced::{Border, Theme};
     pub fn text(theme: &Theme) -> container::Style {
         let palette = theme.extended_palette();
-
+        container::Style {
+            text_color: Some(palette.primary.base.text),
+            background: Some(palette.primary.base.color.into()),
+            border: Border {
+                width: 2.0,
+                color: palette.secondary.base.color,
+                ..Border::default()
+            },
+            ..Default::default()
+        }
+    }
+    pub fn title(theme: &Theme) -> container::Style {
+        let palette = theme.extended_palette();
         container::Style {
             text_color: Some(palette.primary.strong.text),
             background: Some(palette.primary.strong.color.into()),
+            border: Border {
+                width: 1.0,
+                color: palette.secondary.strong.color,
+                ..Border::default()
+            },
             ..Default::default()
         }
     }
     pub fn graph(theme: &Theme) -> container::Style {
         let palette = theme.extended_palette();
         container::Style {
+            text_color: Some(palette.primary.strong.text),
             background: Some(palette.background.weak.color.into()),
             border: Border {
                 width: 2.0,
