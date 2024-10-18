@@ -1,21 +1,25 @@
 use iced::widget::pane_grid::Configuration;
-use iced::widget::{canvas, container, pane_grid, text, Container, slider};
+use iced::widget::{button, canvas, container, pane_grid, slider, text, Container};
 use iced::{mouse, Fill, Rectangle, Renderer, Theme};
 struct App {
     panes: pane_grid::State<Pane>,
     x_shift: f32,
+    y_shift: f32,
 }
 #[derive(Debug, Clone)]
 enum Pane {
     Graph,
     Text(String),
     Slider,
+    Button(String),
 }
 #[derive(Debug, Clone, Copy)]
 enum Message {
     Resize(pane_grid::ResizeEvent),
     Move(pane_grid::DragEvent),
     XShift(f32),
+    YShift(f32),
+    ButtonPress,
 }
 
 impl App {
@@ -23,23 +27,35 @@ impl App {
         let config = Configuration::Split {
             axis: pane_grid::Axis::Vertical,
             ratio: 0.5,
-            a: Box::new(Configuration::Pane(Pane::Graph)),
+            a: Box::new(Configuration::Split {
+                axis: pane_grid::Axis::Horizontal,
+                ratio: 0.5,
+                a: Box::new(Configuration::Pane(Pane::Graph)),
+                b: Box::new(Configuration::Pane(Pane::Button("scan".to_string()))),
+            }),
             b: Box::new(Configuration::Split {
                 axis: pane_grid::Axis::Horizontal,
                 ratio: 0.5,
                 a: Box::new(Configuration::Pane(Pane::Slider)),
-                b: Box::new(Configuration::Pane(Pane::Text("moving panes with the things that will be done on them pretty cool I think".to_string()))),
+                b: Box::new(Configuration::Pane(Pane::Text(
+                    "moving panes with the things that will be done on them pretty cool I think"
+                        .to_string(),
+                ))),
             }),
         };
         let g_state = pane_grid::State::with_configuration(config);
-        App { panes: g_state, x_shift: 0.0 }
+        App {
+            panes: g_state,
+            x_shift: 0.0,
+            y_shift: 0.0,
+        }
     }
     fn view(&self) -> Container<Message> {
         let grid = pane_grid(&self.panes, |_pane, state, _minimized| {
             let title_bar = pane_grid::TitleBar::new(container(text(" Title"))).style(style::title);
             pane_grid::Content::<Message>::new(match state {
                 Pane::Graph => container(
-                    canvas(Graph::new(function(10000), self.x_shift))
+                    canvas(Graph::new(function(10000), self.x_shift, self.y_shift))
                         .width(Fill)
                         .height(Fill),
                 )
@@ -50,8 +66,16 @@ impl App {
                     .padding(10)
                     .width(Fill)
                     .height(Fill),
-                Pane::Slider => container(slider(0.0..=100.0, self.x_shift, Message::XShift))
-                    .style(style::graph)
+                Pane::Slider => container(iced::widget::column!(
+                    slider(0.0..=100.0, self.x_shift, Message::XShift),
+                    slider(0.0..=100.0, self.y_shift, Message::YShift)
+                ))
+                .style(style::graph)
+                .padding(10)
+                .width(Fill)
+                .height(Fill),
+                Pane::Button(t) => container(button(text(t)).on_press(Message::ButtonPress))
+                    .style(style::text)
                     .padding(10)
                     .width(Fill)
                     .height(Fill),
@@ -71,6 +95,8 @@ impl App {
             }
             Message::Move(_) => {}
             Message::XShift(s) => self.x_shift = s,
+            Message::YShift(s) => self.y_shift = s,
+            Message::ButtonPress => {}
         }
     }
 }
@@ -87,14 +113,14 @@ struct Graph {
     y_shift: f32,
 }
 impl Graph {
-    fn new(values: Vec<f32>, x_shift: f32) -> Graph {
+    fn new(values: Vec<f32>, x_shift: f32, y_shift: f32) -> Graph {
         //probably make the values positive or enforce that
         Graph {
             values: values,
             x_scale: 0.2,
             y_scale: 20.0,
             x_shift: x_shift,
-            y_shift: 0.0,
+            y_shift: y_shift,
         }
     }
 }
