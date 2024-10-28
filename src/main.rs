@@ -1,17 +1,12 @@
 use iced::widget::pane_grid::Configuration;
-use iced::widget::{button, canvas, container, pane_grid, slider, text, Container};
+use iced::widget::{button, canvas, column, container, pane_grid, slider, text, Container};
 use iced::{mouse, Fill, Rectangle, Renderer, Theme};
-struct App {
-    panes: pane_grid::State<Pane>,
-    x_shift: f32,
-    y_shift: f32,
-}
 #[derive(Debug, Clone)]
 enum Pane {
     Graph,
     Text(String),
     Slider,
-    Button(String),
+    Controls,
 }
 #[derive(Debug, Clone, Copy)]
 enum Message {
@@ -19,9 +14,17 @@ enum Message {
     Move(pane_grid::DragEvent),
     XShift(f32),
     YShift(f32),
-    ButtonPress,
+    Save,
 }
-
+struct App {
+    panes: pane_grid::State<Pane>,
+	graph: Graph,
+}
+impl Default for App {
+    fn default() -> App {
+        App::new()
+    }
+}
 impl App {
     fn new() -> Self {
         let config = Configuration::Split {
@@ -31,7 +34,7 @@ impl App {
                 axis: pane_grid::Axis::Horizontal,
                 ratio: 0.5,
                 a: Box::new(Configuration::Pane(Pane::Graph)),
-                b: Box::new(Configuration::Pane(Pane::Button("scan".to_string()))),
+                b: Box::new(Configuration::Pane(Pane::Controls)),
             }),
             b: Box::new(Configuration::Split {
                 axis: pane_grid::Axis::Horizontal,
@@ -46,8 +49,7 @@ impl App {
         let g_state = pane_grid::State::with_configuration(config);
         App {
             panes: g_state,
-            x_shift: 0.0,
-            y_shift: 0.0,
+           	graph: Graph::new(function(1000),0.0,0.0),
         }
     }
     fn view(&self) -> Container<Message> {
@@ -55,7 +57,7 @@ impl App {
             let title_bar = pane_grid::TitleBar::new(container(text(" Title"))).style(style::title);
             pane_grid::Content::<Message>::new(match state {
                 Pane::Graph => container(
-                    canvas(Graph::new(function(10000), self.x_shift, self.y_shift))
+                    canvas(self.graph.clone())
                         .width(Fill)
                         .height(Fill),
                 )
@@ -66,26 +68,28 @@ impl App {
                     .padding(10)
                     .width(Fill)
                     .height(Fill),
-                Pane::Slider => container(iced::widget::column!(
-                    slider(0.0..=100.0, self.x_shift, Message::XShift),
-                    slider(0.0..=100.0, self.y_shift, Message::YShift)
+                Pane::Slider => container(column!(
+                    slider(0.0..=100.0, self.graph.x_shift, Message::XShift),
+                    slider(0.0..=100.0, self.graph.y_shift, Message::YShift)
                 ))
                 .style(style::graph)
                 .padding(10)
                 .width(Fill)
                 .height(Fill),
-                Pane::Button(t) => container(button(text(t)).on_press(Message::ButtonPress))
-                    .style(style::text)
-                    .padding(10)
-                    .width(Fill)
-                    .height(Fill),
+                Pane::Controls => container(column!(
+                    button(text("save")).on_press(Message::Save),
+                ))
+                .style(style::text)
+                .padding(10)
+                .width(Fill)
+                .height(Fill),
             })
             .title_bar(title_bar)
         })
         .spacing(10)
         .on_resize(10, Message::Resize)
         .on_drag(Message::Move);
-        container(grid).style(style::app_s).padding(10).into()
+        container(grid).style(style::app_s).padding(10)
     }
     fn update(&mut self, message: Message) {
         match message {
@@ -94,17 +98,13 @@ impl App {
                 self.panes.drop(pane, target)
             }
             Message::Move(_) => {}
-            Message::XShift(s) => self.x_shift = s,
-            Message::YShift(s) => self.y_shift = s,
-            Message::ButtonPress => {}
+            Message::XShift(s) => self.graph.x_shift = s,
+            Message::YShift(s) => self.graph.y_shift = s,
+            Message::Save => println!("{:?}",self.graph.values)
         }
     }
 }
-impl Default for App {
-    fn default() -> App {
-        App::new()
-    }
-}
+#[derive(Clone)]
 struct Graph {
     values: Vec<f32>,
     x_scale: f32,
@@ -116,19 +116,19 @@ impl Graph {
     fn new(values: Vec<f32>, x_shift: f32, y_shift: f32) -> Graph {
         //probably make the values positive or enforce that
         Graph {
-            values: values,
+            values,
             x_scale: 0.2,
             y_scale: 20.0,
-            x_shift: x_shift,
-            y_shift: y_shift,
+            x_shift,
+            y_shift,
         }
     }
 }
 impl<Message> canvas::Program<Message> for Graph {
-    type State = ();
+    type State = Vec<f32>;
     fn draw(
         &self,
-        _state: &(),
+        _state: &Self::State,
         renderer: &Renderer,
         _theme: &Theme,
         bounds: Rectangle,
@@ -140,7 +140,7 @@ impl<Message> canvas::Program<Message> for Graph {
             0.0,
             0.0,
             self.y_scale,
-            -self.x_shift,
+            self.x_shift,
             self.y_shift,
         );
         let mut lines = canvas::path::Builder::new();
@@ -162,6 +162,15 @@ impl<Message> canvas::Program<Message> for Graph {
             },
         );
         vec![frame.into_geometry()]
+    }
+    fn update(
+        &self,
+        _state: &mut Self::State,
+        _event: canvas::Event,
+        _bounds: Rectangle,
+        _cursor: mouse::Cursor,
+    ) -> (canvas::event::Status, Option<Message>) {
+       (canvas::event::Status::Ignored, None) 
     }
 }
 #[allow(dead_code)]
