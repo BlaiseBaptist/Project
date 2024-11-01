@@ -18,7 +18,7 @@ enum Message {
 }
 struct App {
     panes: pane_grid::State<Pane>,
-	graph: Graph,
+    graph: Graph,
 }
 impl Default for App {
     fn default() -> App {
@@ -49,20 +49,16 @@ impl App {
         let g_state = pane_grid::State::with_configuration(config);
         App {
             panes: g_state,
-           	graph: Graph::new(function(1000),0.0,0.0),
+            graph: Graph::new(function(1000), 0.0, 0.0),
         }
     }
     fn view(&self) -> Container<Message> {
         let grid = pane_grid(&self.panes, |_pane, state, _minimized| {
             let title_bar = pane_grid::TitleBar::new(container(text(" Title"))).style(style::title);
             pane_grid::Content::<Message>::new(match state {
-                Pane::Graph => container(
-                    canvas(self.graph.clone())
-                        .width(Fill)
-                        .height(Fill),
-                )
-                .padding(10)
-                .style(style::graph),
+                Pane::Graph => container(canvas(self.graph.clone()).width(Fill).height(Fill))
+                    .padding(10)
+                    .style(style::graph),
                 Pane::Text(t) => container(text(t))
                     .style(style::text)
                     .padding(10)
@@ -76,13 +72,11 @@ impl App {
                 .padding(10)
                 .width(Fill)
                 .height(Fill),
-                Pane::Controls => container(column!(
-                    button(text("save")).on_press(Message::Save),
-                ))
-                .style(style::text)
-                .padding(10)
-                .width(Fill)
-                .height(Fill),
+                Pane::Controls => container(column!(button(text("save")).on_press(Message::Save),))
+                    .style(style::text)
+                    .padding(10)
+                    .width(Fill)
+                    .height(Fill),
             })
             .title_bar(title_bar)
         })
@@ -100,7 +94,11 @@ impl App {
             Message::Move(_) => {}
             Message::XShift(s) => self.graph.x_shift = s,
             Message::YShift(s) => self.graph.y_shift = s,
-            Message::Save => println!("{:?}",self.graph.values)
+            Message::Save => {
+				let mut wtr = csv::Writer::from_path("graph1.csv").unwrap();
+				wtr.write_record(self.graph.values.iter().map(|v| format!("{}",v)));
+				wtr.flush();
+            }
         }
     }
 }
@@ -170,7 +168,7 @@ impl<Message> canvas::Program<Message> for Graph {
         _bounds: Rectangle,
         _cursor: mouse::Cursor,
     ) -> (canvas::event::Status, Option<Message>) {
-       (canvas::event::Status::Ignored, None) 
+        (canvas::event::Status::Ignored, None)
     }
 }
 #[allow(dead_code)]
