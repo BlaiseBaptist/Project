@@ -1,6 +1,9 @@
 use iced::widget::pane_grid::Configuration;
-use iced::widget::{button, canvas, column, container, pane_grid, slider, text, Container};
+use iced::widget::{
+    button, canvas, column, container, pane_grid, pick_list, slider, text, Container,
+};
 use iced::{mouse, widget, Fill, Rectangle, Renderer, Theme};
+use serialport::SerialPortInfo;
 #[derive(Debug, Clone)]
 enum Pane {
     Graph,
@@ -16,11 +19,15 @@ enum Message {
     YShift(f32),
     Save,
     PathChanged(String),
+    ChangePort(String),
+    UpdateGraph,
 }
 struct App {
     panes: pane_grid::State<Pane>,
     graph: Graph,
     path: String,
+    ports: Result<Vec<SerialPortInfo>, serialport::Error>,
+    port: Option<String>,
 }
 impl Default for App {
     fn default() -> App {
@@ -53,6 +60,8 @@ impl App {
             panes: g_state,
             graph: Graph::new(function(1000), 0.0, 0.0),
             path: "graph1.csv".to_string(),
+            ports: serialport::available_ports(),
+            port: None::<String>,
         }
     }
     fn view(&self) -> Container<Message> {
@@ -75,10 +84,26 @@ impl App {
                 }
                 Pane::Slider => {
                     title_text = "Graph Controls".to_string();
-                    container(column!(
-                        slider(0.0..=100.0, self.graph.x_shift, Message::XShift),
-                        slider(0.0..=100.0, self.graph.y_shift, Message::YShift)
-                    ))
+                    container(
+                        column!(
+                            slider(0.0..=100.0, self.graph.x_shift, Message::XShift),
+                            slider(0.0..=100.0, self.graph.y_shift, Message::YShift),
+                            pick_list(
+                                match &self.ports {
+                                    Ok(ports) =>
+                                        ports.iter().map(|port| port.port_name.clone()).collect(),
+                                    Err(err) => vec![err.to_string()],
+                                },
+                                self.port.clone(),
+                                Message::ChangePort
+                            )
+                            .placeholder("Choose a Port")
+                            .width(Fill)
+                            .padding(10),
+                            button("redraw graph").on_press(Message::UpdateGraph)
+                        )
+                        .spacing(10),
+                    )
                     .style(style::graph)
                     .padding(10)
                     .width(Fill)
@@ -89,8 +114,7 @@ impl App {
 
                     container(
                         button(
-                            widget::text_input("type save path here", &self.path)
-                                .on_input(Message::PathChanged),
+                            widget::text_input("Path", &self.path).on_input(Message::PathChanged),
                         )
                         .width(Fill)
                         .on_press(Message::Save),
@@ -129,6 +153,11 @@ impl App {
                 _ => println!("invalid path"),
             },
             Message::PathChanged(path) => self.path = path,
+            Message::ChangePort(port) => self.port = Some(port),
+            Message::UpdateGraph => match &self.port {
+                Some(p) => self.graph.values = read_port(p),
+                None => {},
+            },
         }
     }
 }
@@ -261,6 +290,9 @@ fn function(x_size: usize) -> Vec<f32> {
     (0..x_size)
         .map(|x| ((x as f32 * 0.01).sin() + 1.0))
         .collect()
+}
+fn read_port(_: &String) -> Vec<f32> {
+	function(1000)
 }
 const THEME: Theme = Theme::Dark;
 fn main() {
