@@ -1,6 +1,6 @@
 use iced::widget::pane_grid::Configuration;
 use iced::widget::{button, canvas, column, container, pane_grid, slider, text, Container};
-use iced::{mouse, Fill, Rectangle, Renderer, Theme};
+use iced::{mouse, widget, Fill, Rectangle, Renderer, Theme};
 #[derive(Debug, Clone)]
 enum Pane {
     Graph,
@@ -8,17 +8,19 @@ enum Pane {
     Slider,
     Controls,
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum Message {
     Resize(pane_grid::ResizeEvent),
     Move(pane_grid::DragEvent),
     XShift(f32),
     YShift(f32),
     Save,
+    PathChanged(String),
 }
 struct App {
     panes: pane_grid::State<Pane>,
     graph: Graph,
+    path: String,
 }
 impl Default for App {
     fn default() -> App {
@@ -50,35 +52,60 @@ impl App {
         App {
             panes: g_state,
             graph: Graph::new(function(1000), 0.0, 0.0),
+            path: "graph1.csv".to_string(),
         }
     }
     fn view(&self) -> Container<Message> {
         let grid = pane_grid(&self.panes, |_pane, state, _minimized| {
-            let title_bar = pane_grid::TitleBar::new(container(text(" Title"))).style(style::title);
+            let title_text: String;
             pane_grid::Content::<Message>::new(match state {
-                Pane::Graph => container(canvas(self.graph.clone()).width(Fill).height(Fill))
-                    .padding(10)
-                    .style(style::graph),
-                Pane::Text(t) => container(text(t))
-                    .style(style::text)
+                Pane::Graph => {
+                    title_text = "Graph".to_string();
+                    container(canvas(self.graph.clone()).width(Fill).height(Fill))
+                        .padding(10)
+                        .style(style::graph)
+                }
+                Pane::Text(t) => {
+                    title_text = "About".to_string();
+                    container(text(t))
+                        .style(style::text)
+                        .padding(10)
+                        .width(Fill)
+                        .height(Fill)
+                }
+                Pane::Slider => {
+                    title_text = "Graph Controls".to_string();
+                    container(column!(
+                        slider(0.0..=100.0, self.graph.x_shift, Message::XShift),
+                        slider(0.0..=100.0, self.graph.y_shift, Message::YShift)
+                    ))
+                    .style(style::graph)
                     .padding(10)
                     .width(Fill)
-                    .height(Fill),
-                Pane::Slider => container(column!(
-                    slider(0.0..=100.0, self.graph.x_shift, Message::XShift),
-                    slider(0.0..=100.0, self.graph.y_shift, Message::YShift)
-                ))
-                .style(style::graph)
-                .padding(10)
-                .width(Fill)
-                .height(Fill),
-                Pane::Controls => container(column!(button(text("save")).on_press(Message::Save),))
-                    .style(style::text)
-                    .padding(10)
+                    .height(Fill)
+                }
+                Pane::Controls => {
+                    title_text = "App Controls".to_string();
+
+                    container(
+                        button(
+                            widget::text_input("type save path here", &self.path)
+                                .on_input(Message::PathChanged),
+                        )
+                        .width(Fill)
+                        .on_press(Message::Save),
+                    )
+                    .style(style::graph)
                     .width(Fill)
-                    .height(Fill),
+                    .height(Fill)
+                    .padding(10)
+                }
             })
-            .title_bar(title_bar)
+            .title_bar(
+                pane_grid::TitleBar::new(container(text(title_text)))
+                    .style(style::title)
+                    .padding(5),
+            )
         })
         .spacing(10)
         .on_resize(10, Message::Resize)
@@ -94,11 +121,14 @@ impl App {
             Message::Move(_) => {}
             Message::XShift(s) => self.graph.x_shift = s,
             Message::YShift(s) => self.graph.y_shift = s,
-            Message::Save => {
-				let mut wtr = csv::Writer::from_path("graph1.csv").unwrap();
-				wtr.write_record(self.graph.values.iter().map(|v| format!("{}",v)));
-				wtr.flush();
-            }
+            Message::Save => match csv::Writer::from_path(self.path.clone()) {
+                Ok(mut wtr) => {
+                    let _ = wtr.write_record(self.graph.values.iter().map(|v| format!("{}", v)));
+                    let _ = wtr.flush();
+                }
+                _ => println!("invalid path"),
+            },
+            Message::PathChanged(path) => self.path = path,
         }
     }
 }
