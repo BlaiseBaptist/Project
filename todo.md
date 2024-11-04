@@ -4,3 +4,4 @@
 # Future Things todo
 1. figure out how to deal with different types of data from ports
 1. **refactor everything to make it readable and maintainable** the focus has been to make it work above all so I will need to make it **much** better before it is ok
+1. spell check all the .md files
