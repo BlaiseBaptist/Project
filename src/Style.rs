@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-pub mod Style {
+pub mod style {
     use iced::widget::container;
     use iced::{Border, Theme};
     pub fn text(theme: &Theme) -> container::Style {

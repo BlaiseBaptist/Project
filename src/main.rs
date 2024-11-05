@@ -6,8 +6,8 @@ use iced::{
     Fill,
 };
 use serialport::SerialPortInfo;
-mod Graph;
-mod Style;
+mod graph;
+mod style;
 #[derive(Debug, Clone)]
 enum Pane {
     Graph,
@@ -28,7 +28,7 @@ enum Message {
 }
 struct App {
     panes: pane_grid::State<Pane>,
-    graph: Graph::Graph::FloatingGraph,
+    graph: graph::graph::FloatingGraph,
     path: String,
     ports: Result<Vec<SerialPortInfo>, serialport::Error>,
     port: Option<String>,
@@ -62,7 +62,7 @@ impl App {
         let g_state = pane_grid::State::with_configuration(config);
         App {
             panes: g_state,
-            graph: Graph::Graph::FloatingGraph::new(function(1000), 0.0, 0.0),
+            graph: graph::graph::FloatingGraph::new(function(1000), 0.0, 0.0),
             path: "graph1.csv".to_string(),
             ports: serialport::available_ports(),
             port: None::<String>,
@@ -76,12 +76,12 @@ impl App {
                     title_text = "Graph".to_string();
                     container(canvas(self.graph.clone()).width(Fill).height(Fill))
                         .padding(10)
-                        .style(Style::Style::graph)
+                        .style(style::style::graph)
                 }
                 Pane::Text(t) => {
                     title_text = "About".to_string();
                     container(text(t))
-                        .style(Style::Style::text)
+                        .style(style::style::text)
                         .padding(10)
                         .width(Fill)
                         .height(Fill)
@@ -108,7 +108,7 @@ impl App {
                         )
                         .spacing(10),
                     )
-                    .style(Style::Style::graph)
+                    .style(style::style::graph)
                     .padding(10)
                     .width(Fill)
                     .height(Fill)
@@ -121,7 +121,7 @@ impl App {
                             .width(Fill)
                             .on_press(Message::Save),
                     )
-                    .style(Style::Style::graph)
+                    .style(style::style::graph)
                     .width(Fill)
                     .height(Fill)
                     .padding(10)
@@ -129,14 +129,14 @@ impl App {
             })
             .title_bar(
                 pane_grid::TitleBar::new(container(text(title_text)))
-                    .style(Style::Style::title)
+                    .style(style::style::title)
                     .padding(5),
             )
         })
         .spacing(10)
         .on_resize(10, Message::Resize)
         .on_drag(Message::Move);
-        container(grid).style(Style::Style::app_s).padding(10)
+        container(grid).style(style::style::app_s).padding(10)
     }
     fn update(&mut self, message: Message) {
         match message {

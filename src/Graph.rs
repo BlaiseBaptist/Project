@@ -1,6 +1,6 @@
-pub mod Graph {
+pub mod graph {
     use iced::{mouse, widget::canvas, Rectangle, Renderer, Theme};
-	use crate::Style;
+	use crate::style;
     #[derive(Clone)]
     pub struct FloatingGraph {
         pub values: Vec<f32>,
@@ -54,7 +54,7 @@ pub mod Graph {
                     },
                     line_join: canvas::LineJoin::Bevel,
                     width: 1.0,
-                    style: canvas::Style::Solid(Style::Style::graph(&Style::Style::THEME).text_color.unwrap()),
+                    style: canvas::Style::Solid(style::style::graph(&style::style::THEME).text_color.unwrap()),
                 },
             );
             vec![frame.into_geometry()]
