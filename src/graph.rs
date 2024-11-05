@@ -1,6 +1,6 @@
 pub mod graph {
-    use iced::{mouse, widget::canvas, Rectangle, Renderer, Theme};
-	use crate::style;
+    use crate::{port, style};
+    use iced::{mouse, widget::canvas, Point, Rectangle, Renderer, Theme};
     #[derive(Clone)]
     pub struct FloatingGraph {
         pub values: Vec<f32>,
@@ -54,10 +54,63 @@ pub mod graph {
                     },
                     line_join: canvas::LineJoin::Bevel,
                     width: 1.0,
-                    style: canvas::Style::Solid(style::style::graph(&style::style::THEME).text_color.unwrap()),
+                    style: canvas::Style::Solid(
+                        style::style::graph(&style::style::THEME)
+                            .text_color
+                            .unwrap(),
+                    ),
                 },
             );
             vec![frame.into_geometry()]
+        }
+    }
+    pub struct IterGraph {
+        pub x_scale: f32,
+        pub y_scale: f32,
+        pub x_shift: f32,
+        pub y_shift: f32,
+    }
+    impl<Message> canvas::Program<Message> for IterGraph {
+        type State = port::port::Port;
+        fn draw(
+            &self,
+            state: &Self::State,
+            renderer: &Renderer,
+            _theme: &Theme,
+            bounds: Rectangle,
+            _cursor: mouse::Cursor,
+        ) -> Vec<canvas::Geometry> {
+            let scale = canvas::path::lyon_path::geom::euclid::Transform2D::new(
+                self.x_scale,
+                0.0,
+                0.0,
+                self.y_scale,
+                self.x_shift,
+                self.y_shift,
+            );
+            let line = canvas::Path::line(
+                Point::new(0.0, 0.0),
+                Point::new(1.0, state.current_value)
+            )
+            .transform(&scale);
+            let mut frame = canvas::Frame::new(renderer, bounds.size());
+			frame.stroke(&line,
+                canvas::Stroke {
+                    line_cap: canvas::LineCap::Round,
+                    line_dash: canvas::LineDash {
+                        offset: 0,
+                        segments: &[1.0, 0.0],
+                    },
+                    line_join: canvas::LineJoin::Bevel,
+                    width: 1.0,
+                    style: canvas::Style::Solid(
+                        style::style::graph(&style::style::THEME)
+                            .text_color
+                            .unwrap(),
+                    ),
+				}
+			);
+			vec![frame.into_geometry()]
         }
     }
 }

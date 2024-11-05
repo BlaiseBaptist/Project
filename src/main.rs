@@ -7,6 +7,7 @@ use iced::{
 };
 use serialport::SerialPortInfo;
 mod graph;
+mod port;
 mod style;
 #[derive(Debug, Clone)]
 enum Pane {
@@ -156,10 +157,7 @@ impl App {
             },
             Message::PathChanged(path) => self.path = path,
             Message::ChangePort(port) => self.port = Some(port),
-            Message::UpdateGraph => match &self.port {
-                Some(p) => self.graph.values = read_port(p),
-                None => {}
-            },
+            Message::UpdateGraph => todo!()
         }
     }
 }
@@ -167,11 +165,6 @@ fn function(x_size: usize) -> Vec<f32> {
     (0..x_size)
         .map(|x| ((x as f32 * 0.01).sin() + 1.0))
         .collect()
-}
-fn read_port(_: &String) -> Vec<f32> {
-    //this is not going to be easy to implemnt and i would like to move to a new a file and import here
-    //idk how todo this thought so i will need to look into it
-    function(1000)
 }
 fn main() {
     let _ = iced::application("Graph", App::update, App::view).run();
