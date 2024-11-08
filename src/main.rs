@@ -1,7 +1,7 @@
 use iced::{
     widget::{
-        button, canvas, column, container, pane_grid, pane_grid::Configuration, pick_list, text,
-        text_input, Container,
+        button, canvas, column, container, pane_grid, pane_grid::Configuration, pick_list, row,
+        text, text_input, Container,
     },
     Fill,
 };
@@ -10,7 +10,6 @@ mod graph;
 mod port;
 mod style;
 use graph::graph::FloatingGraph;
-use port::port::Port;
 enum Pane {
     Graph(FloatingGraph),
     Controls,
@@ -37,17 +36,7 @@ impl Default for App {
 }
 impl App {
     fn new() -> Self {
-        let config = Configuration::Split {
-            axis: pane_grid::Axis::Vertical,
-            ratio: 0.5,
-            a: Box::new(Configuration::Pane(Pane::Graph(FloatingGraph::new(
-                function(1000),
-                0.0,
-                0.0,
-                Port { current_value: 1.0 },
-            )))),
-            b: Box::new(Configuration::Pane(Pane::Controls)),
-        };
+        let config = Configuration::Pane(Pane::Controls);
         let g_state = pane_grid::State::with_configuration(config);
         App {
             panes: g_state,
@@ -107,7 +96,7 @@ impl App {
                         function(1000),
                         0.0,
                         0.0,
-                        Port { current_value: 1.0 },
+                        self.path.parse().ok(),
                     )),
                 );
             }
@@ -139,10 +128,13 @@ fn controls_pane(
                 Message::ChangePort
             )
             .placeholder("Select a Port"),
-            button(text_input("Path", &path).on_input(Message::PathChanged))
-                .width(Fill)
-                .on_press(Message::Save)
-                .padding(15),
+            button(row![
+                text("save to:"),
+                text_input("Path", &path).on_input(Message::PathChanged)
+            ])
+            .width(Fill)
+            .on_press(Message::Save)
+            .padding(15),
             button("New Graph").on_press(Message::Split(pane))
         ]
         .spacing(10),
