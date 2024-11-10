@@ -26,7 +26,7 @@ enum Message {
 struct App {
     panes: pane_grid::State<Pane>,
     path: String,
-    ports: Result<Vec<SerialPortInfo>, serialport::Error>,
+    ports: Vec<SerialPortInfo>,
     port: Option<String>,
 }
 impl Default for App {
@@ -38,10 +38,18 @@ impl App {
     fn new() -> Self {
         let config = Configuration::Pane(Pane::Controls);
         let g_state = pane_grid::State::with_configuration(config);
+        let mut ports = serialport::available_ports().unwrap();
+        ports.push(
+            SerialPortInfo{
+                port_name: "dummy".to_string(),
+                port_type: serialport::SerialPortType::Unknown,
+        });
+            
+
         App {
             panes: g_state,
             path: "graph1.csv".to_string(),
-            ports: serialport::available_ports(),
+            ports: ports,
             port: None,
         }
     }
@@ -96,7 +104,7 @@ impl App {
                         function(1000),
                         0.0,
                         0.0,
-                        self.path.parse().ok(),
+                        port::port::from_string(&self.path).ok(),
                     )),
                 );
             }
@@ -112,7 +120,7 @@ impl App {
     }
 }
 fn controls_pane(
-    ports: &Result<Vec<SerialPortInfo>, serialport::Error>,
+    ports: &Vec<SerialPortInfo>,
     current_port: Option<String>,
     path: String,
     pane: pane_grid::Pane,
@@ -120,10 +128,7 @@ fn controls_pane(
     container(
         column![
             pick_list(
-                match ports {
-                    Ok(ports) => ports.iter().map(|port| port.port_name.clone()).collect(),
-                    Err(err) => vec![err.to_string()],
-                },
+                ports.iter().map(|port| port.port_name.clone()).collect::<Vec<_>>(),
                 current_port,
                 Message::ChangePort
             )

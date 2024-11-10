@@ -1,21 +1,21 @@
 pub mod graph {
     use crate::{port, style};
     use iced::{mouse, widget::canvas, Rectangle, Renderer, Theme};
-    #[derive(Clone, Debug)]
+    #[derive(Debug)]
     pub struct FloatingGraph {
         pub values: Vec<f32>,
         pub x_scale: f32,
         pub y_scale: f32,
         pub x_shift: f32,
         pub y_shift: f32,
-        pub port: port::port::Port,
+        pub port: Box<dyn port::port::Port>,
     }
     impl FloatingGraph {
         pub fn new(
             values: Vec<f32>,
             x_shift: f32,
             y_shift: f32,
-            port: Option<port::port::Port>,
+            port: Option<Box<dyn port::port::Port>>,
         ) -> FloatingGraph {
             FloatingGraph {
                 values,
@@ -27,15 +27,15 @@ pub mod graph {
                     Some(p) => p,
                     None => {
                         println!("bad port");
-                        port::port::Port::default()
+                        port::port::default_port()
                     }
                 },
             }
         }
         pub fn update(&mut self) -> Option<f32> {
             self.values.push(self.port.next()?);
-            println!("{}", self.port.current_value);
-            Some(self.port.current_value)
+            println!("{}", self.port.value());
+            Some(self.port.value())
         }
     }
     impl<Message> canvas::Program<Message> for FloatingGraph {
