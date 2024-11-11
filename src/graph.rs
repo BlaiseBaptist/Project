@@ -15,7 +15,7 @@ pub mod graph {
             values: Vec<f32>,
             x_shift: f32,
             y_shift: f32,
-            port: Option<Box<dyn port::port::Port>>,
+            port: Box<dyn port::port::Port>,
         ) -> FloatingGraph {
             FloatingGraph {
                 values,
@@ -23,18 +23,11 @@ pub mod graph {
                 y_scale: 20.0,
                 x_shift,
                 y_shift,
-                port: match port {
-                    Some(p) => p,
-                    None => {
-                        println!("bad port");
-                        port::port::default_port()
-                    }
-                },
+                port,
             }
         }
         pub fn update(&mut self) -> Option<f32> {
             self.values.push(self.port.next()?);
-            println!("{}", self.port.value());
             Some(self.port.value())
         }
     }

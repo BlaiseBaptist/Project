@@ -22,12 +22,13 @@ enum Message {
     PathChanged(String),
     ChangePort(String),
     Split(pane_grid::Pane),
+    Close(pane_grid::Pane),
 }
 struct App {
     panes: pane_grid::State<Pane>,
     path: String,
     ports: Vec<SerialPortInfo>,
-    port: Option<String>,
+    port: String,
 }
 impl Default for App {
     fn default() -> App {
@@ -39,18 +40,15 @@ impl App {
         let config = Configuration::Pane(Pane::Controls);
         let g_state = pane_grid::State::with_configuration(config);
         let mut ports = serialport::available_ports().unwrap();
-        ports.push(
-            SerialPortInfo{
-                port_name: "dummy".to_string(),
-                port_type: serialport::SerialPortType::Unknown,
+        ports.push(SerialPortInfo {
+            port_name: "dummy".to_string(),
+            port_type: serialport::SerialPortType::Unknown,
         });
-            
-
         App {
             panes: g_state,
             path: "graph1.csv".to_string(),
             ports: ports,
-            port: None,
+            port: "dummy".to_string(),
         }
     }
     fn view(&self) -> Container<Message> {
@@ -59,7 +57,7 @@ impl App {
             pane_grid::Content::<Message>::new(match state {
                 Pane::Graph(g) => {
                     title_text = "Graph".to_string();
-                    graph_pane(g)
+                    graph_pane(g, pane)
                 }
                 Pane::Controls => {
                     title_text = "App Controls".to_string();
@@ -95,7 +93,7 @@ impl App {
                 &self.path,
             ),
             Message::PathChanged(path) => self.path = path,
-            Message::ChangePort(port) => self.port = Some(port),
+            Message::ChangePort(port) => self.port = port,
             Message::Split(pane) => {
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
@@ -104,9 +102,12 @@ impl App {
                         function(1000),
                         0.0,
                         0.0,
-                        port::port::from_string(&self.path).ok(),
+                        port::port::from_string(&self.port),
                     )),
                 );
+            }
+            Message::Close(pane) => {
+                self.panes.close(pane);
             }
         }
         let _: Vec<_> = self
@@ -121,25 +122,31 @@ impl App {
 }
 fn controls_pane(
     ports: &Vec<SerialPortInfo>,
-    current_port: Option<String>,
+    current_port: String,
     path: String,
     pane: pane_grid::Pane,
 ) -> Container<Message> {
     container(
         column![
             pick_list(
-                ports.iter().map(|port| port.port_name.clone()).collect::<Vec<_>>(),
-                current_port,
+                ports
+                    .iter()
+                    .map(|port| port.port_name.clone())
+                    .collect::<Vec<_>>(),
+                Some(current_port),
                 Message::ChangePort
+            ),
+            button(
+                row![
+                    text("save to:").line_height(15.0),
+                    text_input("Path", &path)
+                        .on_input(Message::PathChanged)
+                        .line_height(15.0)
+                ]
+                .spacing(10)
             )
-            .placeholder("Select a Port"),
-            button(row![
-                text("save to:"),
-                text_input("Path", &path).on_input(Message::PathChanged)
-            ])
             .width(Fill)
-            .on_press(Message::Save)
-            .padding(15),
+            .on_press(Message::Save),
             button("New Graph").on_press(Message::Split(pane))
         ]
         .spacing(10),
@@ -149,10 +156,13 @@ fn controls_pane(
     .height(Fill)
     .padding(10)
 }
-fn graph_pane(graph: &FloatingGraph) -> Container<Message> {
-    container(column![canvas(graph).width(Fill).height(Fill),])
-        .padding(10)
-        .style(style::style::graph)
+fn graph_pane(graph: &FloatingGraph, pane: pane_grid::Pane) -> Container<Message> {
+    container(column![
+        canvas(graph).width(Fill).height(Fill),
+        button("Close Pane").on_press(Message::Close(pane))
+    ])
+    .padding(10)
+    .style(style::style::graph)
 }
 fn function(x_size: usize) -> Vec<f32> {
     (0..x_size)
