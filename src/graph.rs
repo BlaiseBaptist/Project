@@ -11,14 +11,9 @@ pub mod graph {
         pub port: Box<dyn port::port::Port>,
     }
     impl FloatingGraph {
-        pub fn new(
-            values: Vec<f32>,
-            x_shift: f32,
-            y_shift: f32,
-            port: Box<dyn port::port::Port>,
-        ) -> FloatingGraph {
+        pub fn new(x_shift: f32, y_shift: f32, port: Box<dyn port::port::Port>) -> FloatingGraph {
             FloatingGraph {
-                values,
+                values: vec![0.0],
                 x_scale: 0.2,
                 y_scale: 20.0,
                 x_shift,

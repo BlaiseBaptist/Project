@@ -99,7 +99,6 @@ impl App {
                     pane_grid::Axis::Horizontal,
                     pane,
                     Pane::Graph(FloatingGraph::new(
-                        function(1000),
                         0.0,
                         0.0,
                         port::port::from_string(&self.port),
@@ -169,11 +168,6 @@ fn graph_pane(graph: &FloatingGraph, pane: pane_grid::Pane) -> Container<Message
     ])
     .padding(10)
     .style(style::style::graph)
-}
-fn function(x_size: usize) -> Vec<f32> {
-    (0..x_size)
-        .map(|x| ((x as f32 * 0.01).sin() + 1.0))
-        .collect()
 }
 fn write_file(_data: Vec<&Vec<f32>>, _path: &String) {
     todo!()
