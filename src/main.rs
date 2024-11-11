@@ -128,26 +128,32 @@ fn controls_pane(
 ) -> Container<Message> {
     container(
         column![
-            pick_list(
-                ports
-                    .iter()
-                    .map(|port| port.port_name.clone())
-                    .collect::<Vec<_>>(),
-                Some(current_port),
-                Message::ChangePort
-            ),
+            row![
+                pick_list(
+                    ports
+                        .iter()
+                        .map(|port| port.port_name.clone())
+                        .collect::<Vec<_>>(),
+                    Some(current_port),
+                    Message::ChangePort
+                ),
+                button("New Graph").on_press(Message::Split(pane))
+            ]
+            .spacing(10),
             button(
                 row![
-                    text("save to:").line_height(15.0),
+                    text("save to:")
+                        .align_y(iced::alignment::Vertical::Center)
+                        .line_height(1.5)
+                        .height(30),
                     text_input("Path", &path)
                         .on_input(Message::PathChanged)
-                        .line_height(15.0)
+                        .line_height(1.5)
                 ]
                 .spacing(10)
             )
             .width(Fill)
             .on_press(Message::Save),
-            button("New Graph").on_press(Message::Split(pane))
         ]
         .spacing(10),
     )

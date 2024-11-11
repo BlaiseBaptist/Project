@@ -47,7 +47,6 @@ pub mod port {
         }
     }
     pub fn from_string(s: &str) -> Box<dyn Port> {
-        println!("Parsing {}", s);
         if s == "dummy" {
             return Box::new(DummyPort { current_value: 1.0 });
         };
