@@ -48,19 +48,19 @@ pub mod port {
     }
     pub fn from_string(s: &str) -> Box<dyn Port> {
         if s == "dummy" {
-            return Box::new(DummyPort { current_value: 1.0 });
+            return Box::new(DummyPort::default());
         };
         match try_open(s) {
-            Ok(v) => v,
-            Err(_) => Box::new(DummyPort { current_value: 1.0 }),
+            Ok(v) => Box::new(v),
+            Err(_) => Box::new(DummyPort::default()),
         }
     }
-    fn try_open(s: &str) -> Result<Box<dyn Port>, serialport::Error> {
+    fn try_open(s: &str) -> Result<impl Port, serialport::Error> {
         let mut port = serialport::new(s, 9600).open()?;
         let mut serial_buf: Vec<u8> = vec![0; 32];
-        Ok(Box::new(PhysicalPort {
+        Ok(PhysicalPort {
             current_value: port.read(serial_buf.as_mut_slice())? as f32,
             port,
-        }))
+        })
     }
 }
