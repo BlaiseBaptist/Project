@@ -1,17 +1,20 @@
 pub mod port {
     use serialport;
     use std::fmt::Debug;
+    #[allow(dead_code)]
     pub trait Port: Debug + Iterator<Item = f32> {
         fn value(&self) -> f32;
     }
     #[derive(Debug)]
     pub struct DummyPort {
         pub current_value: f32,
+        value_count: u32, //this is just to make it more interesting and clear what it is
     }
     impl Iterator for DummyPort {
         type Item = f32;
         fn next(&mut self) -> Option<Self::Item> {
-            Some(self.current_value)
+            self.value_count += 1;
+            Some(((self.value_count as f32) / 100.0).sin() * 100.0)
         }
     }
     impl Port for DummyPort {
@@ -21,7 +24,10 @@ pub mod port {
     }
     impl std::default::Default for DummyPort {
         fn default() -> Self {
-            return DummyPort { current_value: 1.0 };
+            return DummyPort {
+                current_value: 1.0,
+                value_count: 0,
+            };
         }
     }
     #[derive(Debug)]

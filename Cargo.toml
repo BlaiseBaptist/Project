@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 csv = "1.3.0"
-iced = { version = "0.13.1", features = ["canvas"] }
+iced = { version = "0.13.1", features = ["canvas", "tokio"] }
 serialport = "=4.6.0"

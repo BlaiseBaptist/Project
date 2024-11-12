@@ -14,16 +14,12 @@ pub mod graph {
         pub fn new(x_shift: f32, y_shift: f32, port: Box<dyn port::port::Port>) -> FloatingGraph {
             FloatingGraph {
                 values: vec![0.0],
-                x_scale: 0.2,
-                y_scale: 20.0,
+                x_scale: 1.0,
+                y_scale: 1.0,
                 x_shift,
                 y_shift,
                 port,
             }
-        }
-        pub fn update(&mut self) -> Option<f32> {
-            self.values.push(self.port.next()?);
-            Some(self.port.value())
         }
     }
     impl<Message> canvas::Program<Message> for FloatingGraph {
@@ -42,11 +38,11 @@ pub mod graph {
                 0.0,
                 0.0,
                 self.y_scale,
-                self.x_shift,
-                self.y_shift,
+                self.x_shift + bounds.size().width - self.values.len() as f32,
+                self.y_shift + bounds.size().height / 2.0,
             );
             let mut lines = canvas::path::Builder::new();
-            lines.move_to(iced::Point::new(0.0, self.values[0]));
+            lines.move_to(iced::Point::new(1.0, self.values[0]));
             for i in 1..self.values.len() {
                 lines.line_to(iced::Point::new(i as f32, self.values[i]));
             }

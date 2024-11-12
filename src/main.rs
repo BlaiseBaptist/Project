@@ -1,11 +1,13 @@
 use iced::{
+    time,
     widget::{
         button, canvas, column, container, pane_grid, pane_grid::Configuration, pick_list, row,
         text, text_input, Container,
     },
-    Fill,
+    Fill, Subscription,
 };
 use serialport::SerialPortInfo;
+use std::time::Duration;
 mod graph;
 mod port;
 mod style;
@@ -23,6 +25,7 @@ enum Message {
     ChangePort(String),
     Split(pane_grid::Pane),
     Close(pane_grid::Pane),
+    Update,
 }
 struct App {
     panes: pane_grid::State<Pane>,
@@ -108,15 +111,20 @@ impl App {
             Message::Close(pane) => {
                 self.panes.close(pane);
             }
+            Message::Update => {
+                let _: Vec<_> = self
+                    .panes
+                    .iter_mut()
+                    .map(|(_, t)| match t {
+                        Pane::Graph(g) => g.values.push(g.port.next().unwrap()),
+                        _ => {}
+                    })
+                    .collect();
+            }
         }
-        let _: Vec<_> = self
-            .panes
-            .iter_mut()
-            .map(|(_, t)| match t {
-                Pane::Graph(g) => g.update(),
-                _ => None,
-            })
-            .collect();
+    }
+    fn subscription(&self) -> Subscription<Message> {
+        time::every(Duration::from_millis(1)).map(|_| Message::Update)
     }
 }
 fn controls_pane(
@@ -173,5 +181,7 @@ fn write_file(_data: Vec<&Vec<f32>>, _path: &String) {
     todo!()
 }
 fn main() {
-    let _ = iced::application("Graph", App::update, App::view).run();
+    let _ = iced::application("Graph", App::update, App::view)
+        .subscription(App::subscription)
+        .run();
 }
