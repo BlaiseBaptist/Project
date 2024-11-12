@@ -52,7 +52,10 @@ pub mod port {
         };
         match try_open(s) {
             Ok(v) => Box::new(v),
-            Err(_) => Box::new(DummyPort::default()),
+            Err(e) => {
+                println!("Error Opening {}: {} ( {:?} )", s, e.description, e.kind);
+                Box::new(DummyPort::default())
+            }
         }
     }
     fn try_open(s: &str) -> Result<impl Port, serialport::Error> {
