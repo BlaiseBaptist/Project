@@ -42,8 +42,12 @@ pub mod graph {
                 self.y_shift + bounds.size().height / 2.0,
             );
             let mut lines = canvas::path::Builder::new();
-            lines.move_to(iced::Point::new(1.0, self.values[0]));
-            for i in 1..self.values.len() {
+            let start = match self.values.len().checked_sub(bounds.size().width as usize) {
+                Some(v) => v,
+                _ => 0,
+            };
+            lines.move_to(iced::Point::new(0.0, self.values[start]));
+            for i in (start + 1)..self.values.len() {
                 lines.line_to(iced::Point::new(i as f32, self.values[i]));
             }
             frame.stroke(&lines.build().transform(&scale), style::style::STROKE);
