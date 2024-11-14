@@ -1,6 +1,7 @@
 # Current Things to Fix
 
 1. figure out if it can even see "real" ports rn
+1. refresh port list when it changes or more often if easier
 
 # Future Things todo
 

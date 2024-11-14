@@ -112,7 +112,10 @@ impl App {
                     .panes
                     .iter_mut()
                     .map(|(_, t)| match t {
-                        Pane::Graph(g) => g.values.push(g.port.next().unwrap()),
+                        Pane::Graph(g) => match g.port.next() {
+                            Some(v) => g.values.push(v),
+                            None => {}
+                        },
                         _ => {}
                     })
                     .collect();
