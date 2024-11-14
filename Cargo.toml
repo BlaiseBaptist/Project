@@ -7,3 +7,6 @@ edition = "2021"
 csv = "1.3.0"
 iced = { version = "0.13.1", features = ["canvas", "tokio"] }
 serialport = "=4.6.0"
+
+[profile.release]
+debug = true

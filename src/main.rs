@@ -11,9 +11,9 @@ use std::time::Duration;
 mod graph;
 mod port;
 mod style;
-use graph::graph::FloatingGraph;
+use graph::graph::Graph;
 enum Pane {
-    Graph(FloatingGraph),
+    Graph(Graph),
     Controls,
 }
 #[derive(Debug, Clone)]
@@ -101,11 +101,7 @@ impl App {
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
                     pane,
-                    Pane::Graph(FloatingGraph::new(
-                        0.0,
-                        0.0,
-                        port::port::from_string(&self.port),
-                    )),
+                    Pane::Graph(Graph::new(0.0, 0.0, port::port::from_string(&self.port))),
                 );
             }
             Message::Close(pane) => {
@@ -169,7 +165,7 @@ fn controls_pane(
     .height(Fill)
     .padding(10)
 }
-fn graph_pane(graph: &FloatingGraph, pane: pane_grid::Pane) -> Container<Message> {
+fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     container(column![
         canvas(graph).width(Fill).height(Fill),
         button("Close Pane").on_press(Message::Close(pane))

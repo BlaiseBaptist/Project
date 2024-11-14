@@ -1,8 +1,8 @@
 pub mod graph {
-    use crate::{port, style};
+    use crate::port;
     use iced::{mouse, widget::canvas, Rectangle, Renderer, Theme};
     #[derive(Debug)]
-    pub struct FloatingGraph {
+    pub struct Graph {
         pub values: Vec<f32>,
         pub x_scale: f32,
         pub y_scale: f32,
@@ -10,9 +10,9 @@ pub mod graph {
         pub y_shift: f32,
         pub port: Box<dyn port::port::Port>,
     }
-    impl FloatingGraph {
-        pub fn new(x_shift: f32, y_shift: f32, port: Box<dyn port::port::Port>) -> FloatingGraph {
-            FloatingGraph {
+    impl Graph {
+        pub fn new(x_shift: f32, y_shift: f32, port: Box<dyn port::port::Port>) -> Graph {
+            Graph {
                 values: vec![0.0],
                 x_scale: 1.0,
                 y_scale: 1.0,
@@ -22,13 +22,13 @@ pub mod graph {
             }
         }
     }
-    impl<Message> canvas::Program<Message> for FloatingGraph {
+    impl<Message> canvas::Program<Message> for Graph {
         type State = Vec<f32>;
         fn draw(
             &self,
             _state: &Self::State,
             renderer: &Renderer,
-            _theme: &Theme,
+            theme: &Theme,
             bounds: Rectangle,
             _cursor: mouse::Cursor,
         ) -> Vec<canvas::Geometry> {
@@ -50,7 +50,17 @@ pub mod graph {
             for i in (start + 1)..self.values.len() {
                 lines.line_to(iced::Point::new(i as f32, self.values[i]));
             }
-            frame.stroke(&lines.build().transform(&scale), style::style::STROKE);
+            let stroke: canvas::Stroke = canvas::Stroke {
+                line_cap: canvas::LineCap::Round,
+                line_dash: canvas::LineDash {
+                    offset: 0,
+                    segments: &[1.0, 0.0],
+                },
+                line_join: canvas::LineJoin::Bevel,
+                width: 1.0,
+                style: canvas::Style::Solid(theme.palette().text),
+            };
+            frame.stroke(&lines.build().transform(&scale), stroke);
             vec![frame.into_geometry()]
         }
     }
