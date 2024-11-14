@@ -1,6 +1,7 @@
 pub mod port {
     use serialport;
     use std::fmt::Debug;
+    use std::time::Duration;
     #[allow(dead_code)]
     pub trait Port: Debug + Iterator<Item = f32> {
         fn value(&self) -> f32;
@@ -38,8 +39,17 @@ pub mod port {
     impl Iterator for PhysicalPort {
         type Item = f32;
         fn next(&mut self) -> Option<Self::Item> {
-            let mut serial_buf: Vec<u8> = vec![0; 32];
-            Some(self.port.read(serial_buf.as_mut_slice()).ok()? as f32)
+            let mut bytes: Vec<u8> = Vec::new();
+            while bytes.len() < 32 {
+                let mut serial_buf: Vec<u8> = vec![0];
+                let _ = self.port.read(serial_buf.as_mut_slice()).ok()?;
+                bytes.push(serial_buf[0]);
+            }
+            //println!("#bytes {}, bytes {:?}", bytes.len(), bytes);
+            let value = bytes.iter().enumerate().reduce(|(acc, _), (p, b)| {
+                (acc + (*b as usize) * 2_usize.pow(p.try_into().unwrap()), &1)
+            })?;
+            Some(value.0 as f32)
         }
     }
     impl Port for PhysicalPort {
@@ -65,7 +75,9 @@ pub mod port {
         }
     }
     fn try_open(s: &str) -> Result<impl Port, serialport::Error> {
-        let mut port = serialport::new(s, 9600).open()?;
+        let mut port = serialport::new(s, 9600)
+            .timeout(Duration::from_millis(100))
+            .open()?;
         let mut serial_buf: Vec<u8> = vec![0; 32];
         Ok(PhysicalPort {
             current_value: port.read(serial_buf.as_mut_slice())? as f32,

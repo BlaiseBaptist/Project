@@ -32,6 +32,7 @@ struct App {
     path: String,
     ports: Vec<SerialPortInfo>,
     port: String,
+    open_delay: usize,
 }
 impl Default for App {
     fn default() -> App {
@@ -52,6 +53,7 @@ impl App {
             path: "graph1.csv".to_string(),
             ports: ports,
             port: "dummy".to_string(),
+            open_delay: 0,
         }
     }
     fn view(&self) -> Container<Message> {
@@ -96,34 +98,41 @@ impl App {
                 &self.path,
             ),
             Message::PathChanged(path) => self.path = path,
-            Message::ChangePort(port) => self.port = port,
+            Message::ChangePort(port) => {
+                self.port = port;
+            }
             Message::Split(pane) => {
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
                     pane,
                     Pane::Graph(Graph::new(0.0, 0.0, port::port::from_string(&self.port))),
                 );
+                self.open_delay = 1000;
             }
             Message::Close(pane) => {
                 self.panes.close(pane);
             }
             Message::Update => {
-                let _: Vec<_> = self
-                    .panes
-                    .iter_mut()
-                    .map(|(_, t)| match t {
-                        Pane::Graph(g) => match g.port.next() {
-                            Some(v) => g.values.push(v),
-                            None => {}
-                        },
-                        _ => {}
-                    })
-                    .collect();
+                if self.open_delay == 0 {
+                    let _: Vec<_> = self
+                        .panes
+                        .iter_mut()
+                        .map(|(_, t)| match t {
+                            Pane::Graph(g) => match g.port.next() {
+                                Some(v) => g.values.push(v),
+                                None => {}
+                            },
+                            _ => {}
+                        })
+                        .collect();
+                } else {
+                    self.open_delay -= 1
+                }
             }
         }
     }
     fn subscription(&self) -> Subscription<Message> {
-        time::every(Duration::from_micros(100)).map(|_| Message::Update)
+        time::every(Duration::from_micros(104)).map(|_| Message::Update) // 9600 baud about
     }
 }
 fn controls_pane(
