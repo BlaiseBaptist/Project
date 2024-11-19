@@ -107,7 +107,7 @@ impl App {
                     pane,
                     Pane::Graph(Graph::new(0.0, 0.0, port::port::from_string(&self.port))),
                 );
-                self.open_delay = 1000;
+                self.open_delay = 10;
             }
             Message::Close(pane) => {
                 self.panes.close(pane);
@@ -132,7 +132,7 @@ impl App {
         }
     }
     fn subscription(&self) -> Subscription<Message> {
-        time::every(Duration::from_micros(104)).map(|_| Message::Update) // 9600 baud about
+        time::every(Duration::from_micros(10)).map(|_| Message::Update)
     }
 }
 fn controls_pane(

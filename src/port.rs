@@ -42,13 +42,20 @@ pub mod port {
         type Item = f32;
         fn next(&mut self) -> Option<Self::Item> {
             let mut serial_buf = [0b0 as u8; 4];
-            let _ = self.port.read_exact(&mut serial_buf).ok()?;
+            match self.port.bytes_to_read().ok()? {
+                4.. => {
+                    self.port.read(&mut serial_buf).ok()?;
+                }
+                _ => {
+                    return None;
+                }
+            };
             let value = if self.big_endian {
                 u32::from_be_bytes(serial_buf)
             } else {
                 u32::from_le_bytes(serial_buf)
             };
-            println!("{}", value);
+            println!("{:b}", value);
             Some(value as f32)
         }
     }
