@@ -43,14 +43,10 @@ pub mod graph {
             );
             let mut lines = canvas::path::Builder::new();
             let len = self.values.len();
-            //            if len % 1000 == 0 {
-            println!("{}", len);
-            //            }
             let start = match len.checked_sub(bounds.size().width as usize) {
                 Some(v) => v,
                 _ => 0,
             };
-            println!("Start {}", start);
             lines.move_to(iced::Point::new(0.0, self.values[start]));
             for i in (start + 1)..len {
                 lines.line_to(iced::Point::new(i as f32, self.values[i]));
