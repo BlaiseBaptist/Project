@@ -100,6 +100,12 @@ impl App {
             ),
             Message::PathChanged(path) => self.path = path,
             Message::ChangePort(port) => {
+                let mut ports = serialport::available_ports().unwrap();
+                ports.push(SerialPortInfo {
+                    port_name: "dummy".to_string(),
+                    port_type: serialport::SerialPortType::Unknown,
+                });
+                self.ports = ports;
                 self.port = port;
             }
             Message::Split(pane) => {
@@ -185,8 +191,15 @@ fn controls_pane(
 fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     container(column![
         canvas(graph).width(Fill).height(Fill),
-        button("Close Pane").on_press(Message::Close(pane)),
-        button("Change endianness").on_press(Message::SwapEndianness(pane))
+        row![
+            button("Close Pane").on_press(Message::Close(pane)),
+            button(text(format!(
+                "Swap Endianness (currently {})",
+                graph.port.endian_value()
+            )))
+            .on_press(Message::SwapEndianness(pane))
+        ]
+        .spacing(10)
     ])
     .padding(10)
     .style(style::style::graph)

@@ -1,9 +1,8 @@
 # Current Things to Fix
 
-1. finish converting bits
+1. **Fix slowdown with large values (2^<sup>32</sup>) **
 1. figure out why it gets multiple values per poll
 1. fix graphing latency / optimize with 40000+ data points
-1. graph controls per pane
 
 
 # Future Things todo

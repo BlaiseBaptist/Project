@@ -4,12 +4,11 @@ pub mod port {
     use std::time::Duration;
     #[allow(dead_code)]
     pub trait Port: Debug + Iterator<Item = f32> {
-        fn value(&self) -> f32;
+        fn endian_value(&self) -> &str;
         fn swap_endianness(&mut self);
     }
     #[derive(Debug)]
     pub struct DummyPort {
-        pub current_value: f32,
         value_count: u32, //this is just to make it more interesting and clear what it is
     }
     impl Iterator for DummyPort {
@@ -21,24 +20,18 @@ pub mod port {
         }
     }
     impl Port for DummyPort {
-        fn value(&self) -> f32 {
-            self.current_value
+        fn endian_value(&self) -> &str {
+            "not reading data"
         }
-        fn swap_endianness(&mut self) {
-            println!("endianness swapped (not really)");
-        }
+        fn swap_endianness(&mut self) {}
     }
     impl std::default::Default for DummyPort {
         fn default() -> Self {
-            return DummyPort {
-                current_value: 1.0,
-                value_count: 0,
-            };
+            return DummyPort { value_count: 0 };
         }
     }
     #[derive(Debug)]
     pub struct PhysicalPort {
-        pub current_value: f32,
         pub port: Box<dyn serialport::SerialPort>,
         pub big_endian: bool,
     }
@@ -59,13 +52,16 @@ pub mod port {
             } else {
                 u32::from_le_bytes(serial_buf)
             };
-            println!("{:b}", value);
             Some(value as f32)
         }
     }
     impl Port for PhysicalPort {
-        fn value(&self) -> f32 {
-            return self.current_value;
+        fn endian_value(&self) -> &str {
+            return if self.big_endian {
+                "big endian"
+            } else {
+                "little endian"
+            };
         }
         fn swap_endianness(&mut self) {
             self.big_endian = !self.big_endian;
@@ -96,7 +92,6 @@ pub mod port {
             .timeout(Duration::from_millis(100))
             .open()?;
         Ok(PhysicalPort {
-            current_value: 0.0,
             port,
             big_endian: true,
         })
