@@ -4,12 +4,12 @@ pub mod port {
     use std::time::Duration;
     #[allow(dead_code)]
     pub trait Port: Debug + Iterator<Item = f32> {
-        fn endian_value(&self) -> &str;
+        fn endian_value(&self) -> String;
         fn swap_endianness(&mut self);
     }
     #[derive(Debug)]
     pub struct DummyPort {
-        value_count: u32, //this is just to make it more interesting and clear what it is
+        value_count: u32, //this is just to make it more interesting
     }
     impl Iterator for DummyPort {
         type Item = f32;
@@ -20,8 +20,8 @@ pub mod port {
         }
     }
     impl Port for DummyPort {
-        fn endian_value(&self) -> &str {
-            "not reading data"
+        fn endian_value(&self) -> String {
+            format!("has {} elements", self.value_count)
         }
         fn swap_endianness(&mut self) {}
     }
@@ -56,12 +56,13 @@ pub mod port {
         }
     }
     impl Port for PhysicalPort {
-        fn endian_value(&self) -> &str {
-            return if self.big_endian {
+        fn endian_value(&self) -> String {
+            return (if self.big_endian {
                 "big endian"
             } else {
                 "little endian"
-            };
+            })
+            .to_string();
         }
         fn swap_endianness(&mut self) {
             self.big_endian = !self.big_endian;
