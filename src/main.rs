@@ -25,6 +25,7 @@ enum Message {
     ChangePort(String),
     Split(pane_grid::Pane),
     Close(pane_grid::Pane),
+    SwapEndianness(pane_grid::Pane),
     Update,
 }
 struct App {
@@ -112,6 +113,9 @@ impl App {
             Message::Close(pane) => {
                 self.panes.close(pane);
             }
+            Message::SwapEndianness(pane) => {
+                println!("{:?}", pane);
+            }
             Message::Update => {
                 if self.open_delay == 0 {
                     let _: Vec<_> = self
@@ -180,7 +184,8 @@ fn controls_pane(
 fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     container(column![
         canvas(graph).width(Fill).height(Fill),
-        button("Close Pane").on_press(Message::Close(pane))
+        button("Close Pane").on_press(Message::Close(pane)),
+        button("Change endianness").on_press(Message::SwapEndianness(pane))
     ])
     .padding(10)
     .style(style::style::graph)

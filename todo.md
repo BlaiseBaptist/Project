@@ -1,6 +1,5 @@
 # Current Things to Fix
 
-1. **FIX IT GETTING STUCK OPENING DEBUG PORT**
 1. finish converting bits
 1. figure out why it gets multiple values per poll
 1. fix graphing latency / optimize with 40000+ data points
