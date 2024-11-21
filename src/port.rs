@@ -5,6 +5,7 @@ pub mod port {
     #[allow(dead_code)]
     pub trait Port: Debug + Iterator<Item = f32> {
         fn value(&self) -> f32;
+        fn swap_endianness(&mut self);
     }
     #[derive(Debug)]
     pub struct DummyPort {
@@ -22,6 +23,9 @@ pub mod port {
     impl Port for DummyPort {
         fn value(&self) -> f32 {
             self.current_value
+        }
+        fn swap_endianness(&mut self) {
+            println!("endianness swapped (not really)");
         }
     }
     impl std::default::Default for DummyPort {
@@ -62,6 +66,9 @@ pub mod port {
     impl Port for PhysicalPort {
         fn value(&self) -> f32 {
             return self.current_value;
+        }
+        fn swap_endianness(&mut self) {
+            self.big_endian = !self.big_endian;
         }
     }
     impl Clone for PhysicalPort {

@@ -21,6 +21,9 @@ pub mod graph {
                 port,
             }
         }
+        pub fn swap_endianness(&mut self) {
+            self.port.swap_endianness()
+        }
     }
     impl<Message> canvas::Program<Message> for Graph {
         type State = Vec<f32>;

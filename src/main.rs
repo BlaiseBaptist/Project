@@ -113,9 +113,10 @@ impl App {
             Message::Close(pane) => {
                 self.panes.close(pane);
             }
-            Message::SwapEndianness(pane) => {
-                println!("{:?}", pane);
-            }
+            Message::SwapEndianness(pane) => match self.panes.get_mut(pane) {
+                Some(Pane::Graph(graph)) => graph.swap_endianness(),
+                _ => unimplemented!(),
+            },
             Message::Update => {
                 if self.open_delay == 0 {
                     let _: Vec<_> = self
