@@ -36,16 +36,16 @@ pub mod graph {
             _cursor: mouse::Cursor,
         ) -> Vec<canvas::Geometry> {
             let mut frame = canvas::Frame::new(renderer, bounds.size());
+            let len = self.values.len();
             let scale = canvas::path::lyon_path::geom::euclid::Transform2D::new(
                 self.x_scale,
                 0.0,
                 0.0,
                 self.y_scale,
-                self.x_shift + bounds.size().width - self.values.len() as f32,
-                self.y_shift + bounds.size().height / 2.0,
+                self.x_shift + bounds.size().width - len as f32,
+                self.y_shift,
             );
             let mut lines = canvas::path::Builder::new();
-            let len = self.values.len();
             let start = match len.checked_sub(bounds.size().width as usize) {
                 Some(v) => v,
                 _ => 0,
