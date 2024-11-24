@@ -37,23 +37,26 @@ pub mod graph {
         ) -> Vec<canvas::Geometry> {
             let mut frame = canvas::Frame::new(renderer, bounds.size());
             let len = self.values.len();
+            let start = match len.checked_sub(bounds.size().width as usize) {
+                Some(v) => v,
+                _ => 0,
+            };
             let scale = canvas::path::lyon_path::geom::euclid::Transform2D::new(
                 self.x_scale,
                 0.0,
                 0.0,
                 self.y_scale,
-                self.x_shift + bounds.size().width - len as f32,
+                self.x_shift,
                 self.y_shift,
             );
             let mut lines = canvas::path::Builder::new();
-            let start = match len.checked_sub(bounds.size().width as usize) {
-                Some(v) => v,
-                _ => 0,
-            };
-            lines.move_to(iced::Point::new(0.0, self.values[start] as f32));
-            for i in (start + 1)..len {
-                lines.line_to(iced::Point::new(i as f32, self.values[i] as f32));
-            }
+            let graph_values = &self.values[start..];
+            lines.move_to(iced::Point::new(0.0, graph_values[0] as f32));
+            graph_values
+                .iter()
+                .enumerate()
+                .skip(1)
+                .for_each(|(i, value)| lines.line_to(iced::Point::new(i as f32, *value as f32)));
             let stroke: canvas::Stroke = canvas::Stroke {
                 line_cap: canvas::LineCap::Round,
                 line_dash: canvas::LineDash {

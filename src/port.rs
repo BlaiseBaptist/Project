@@ -10,13 +10,15 @@ pub mod port {
     #[derive(Debug)]
     pub struct DummyPort {
         value_count: u32, //this is just to make it more interesting
+        dampen: f32,
     }
     impl Iterator for DummyPort {
         type Item = u32;
         #[allow(unused_mut)]
         fn next(&mut self) -> Option<Self::Item> {
             self.value_count += 1;
-            let sin_value = (((self.value_count as f32) / 100.0).sin() + 1.0) * 100.0;
+            self.dampen *= 1.0;
+            let sin_value = (((self.value_count as f32) / 100.0).sin() + 1.0) * 100.0 * self.dampen;
             Some((sin_value) as u32)
         }
     }
@@ -28,7 +30,10 @@ pub mod port {
     }
     impl std::default::Default for DummyPort {
         fn default() -> Self {
-            return DummyPort { value_count: 0 };
+            return DummyPort {
+                value_count: 0,
+                dampen: 1.0,
+            };
         }
     }
     #[derive(Debug)]

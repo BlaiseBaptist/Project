@@ -143,7 +143,7 @@ impl App {
         }
     }
     fn subscription(&self) -> Subscription<Message> {
-        time::every(Duration::from_micros(10)).map(|_| Message::Update)
+        time::every(Duration::from_nanos(10)).map(|_| Message::Update)
     }
 }
 fn controls_pane(
