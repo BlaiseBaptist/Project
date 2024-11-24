@@ -3,7 +3,7 @@ pub mod graph {
     use iced::{mouse, widget::canvas, Rectangle, Renderer, Theme};
     #[derive(Debug)]
     pub struct Graph {
-        pub values: Vec<f32>,
+        pub values: Vec<u32>,
         pub x_scale: f32,
         pub y_scale: f32,
         pub x_shift: f32,
@@ -13,7 +13,7 @@ pub mod graph {
     impl Graph {
         pub fn new(x_shift: f32, y_shift: f32, port: Box<dyn port::port::Port>) -> Graph {
             Graph {
-                values: vec![0.0],
+                values: vec![0],
                 x_scale: 1.0,
                 y_scale: 1.0,
                 x_shift,
@@ -26,7 +26,7 @@ pub mod graph {
         }
     }
     impl<Message> canvas::Program<Message> for Graph {
-        type State = Vec<f32>;
+        type State = Vec<u32>;
         fn draw(
             &self,
             _state: &Self::State,
@@ -50,9 +50,9 @@ pub mod graph {
                 Some(v) => v,
                 _ => 0,
             };
-            lines.move_to(iced::Point::new(0.0, self.values[start]));
+            lines.move_to(iced::Point::new(0.0, self.values[start] as f32));
             for i in (start + 1)..len {
-                lines.line_to(iced::Point::new(i as f32, self.values[i]));
+                lines.line_to(iced::Point::new(i as f32, self.values[i] as f32));
             }
             let stroke: canvas::Stroke = canvas::Stroke {
                 line_cap: canvas::LineCap::Round,

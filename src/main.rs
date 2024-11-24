@@ -204,7 +204,7 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     .padding(10)
     .style(style::style::graph)
 }
-fn write_file(_data: Vec<&Vec<f32>>, _path: &String) {
+fn write_file(_data: Vec<&Vec<u32>>, _path: &String) {
     todo!()
 }
 fn main() {

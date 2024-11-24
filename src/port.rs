@@ -3,7 +3,7 @@ pub mod port {
     use std::fmt::Debug;
     use std::time::Duration;
     #[allow(dead_code)]
-    pub trait Port: Debug + Iterator<Item = f32> {
+    pub trait Port: Debug + Iterator<Item = u32> {
         fn endian_value(&self) -> String;
         fn swap_endianness(&mut self);
     }
@@ -12,11 +12,11 @@ pub mod port {
         value_count: u32, //this is just to make it more interesting
     }
     impl Iterator for DummyPort {
-        type Item = f32;
+        type Item = u32;
         #[allow(unused_mut)]
         fn next(&mut self) -> Option<Self::Item> {
             self.value_count += 1;
-            Some((self.value_count as f32 / 100.0).sin() * 100.0)
+            Some((self.value_count as f32 / 100.0).sin() as u32 * 100)
         }
     }
     impl Port for DummyPort {
@@ -34,9 +34,10 @@ pub mod port {
     pub struct PhysicalPort {
         pub port: Box<dyn serialport::SerialPort>,
         pub big_endian: bool,
+        current_value: u32,
     }
     impl Iterator for PhysicalPort {
-        type Item = f32;
+        type Item = u32;
         fn next(&mut self) -> Option<Self::Item> {
             let mut serial_buf = [0b0 as u8; 4];
             match self.port.bytes_to_read().ok()? {
@@ -47,12 +48,13 @@ pub mod port {
                     return None;
                 }
             };
-            let value = if self.big_endian {
+            let value = (if self.big_endian {
                 u32::from_be_bytes(serial_buf)
             } else {
                 u32::from_le_bytes(serial_buf)
-            };
-            Some(value as f32)
+            }) as u32;
+            self.current_value = value;
+            Some(value)
         }
     }
     impl Port for PhysicalPort {
@@ -65,6 +67,7 @@ pub mod port {
             .to_string();
         }
         fn swap_endianness(&mut self) {
+            println!("current value: {}", self.current_value);
             self.big_endian = !self.big_endian;
         }
     }
@@ -94,6 +97,7 @@ pub mod port {
             .open()?;
         Ok(PhysicalPort {
             port,
+            current_value: 0,
             big_endian: true,
         })
     }
