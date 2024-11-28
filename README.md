@@ -12,10 +12,10 @@ It doesn't lmao
 
 ## Issues Currently Being Fixed
 
-1. **Fix slowdown with large values (2<sup>31</sup>)**
-
 
 ## Future Issues
 
 1. go from time based update to waiting based updates for the graph and move that to the port
 1. figure out how to deal with different types of data from ports
+1. improve UI
+1. add keyboard shortcuts
