@@ -45,9 +45,9 @@ pub mod graph {
                 self.x_scale,
                 0.0,
                 0.0,
-                self.y_scale * bounds.size().height / 2u32.pow(31u32) as f32,
+                -self.y_scale * bounds.size().height / 2u32.pow(31u32) as f32,
                 self.x_shift,
-                self.y_shift,
+                self.y_shift + bounds.size().height,
             );
             let mut lines = canvas::path::Builder::new();
             let graph_values = &self.values[start..];
