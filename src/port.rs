@@ -19,6 +19,7 @@ pub mod port {
             self.value_count += 1;
             self.dampen *= 1.0;
             let sin_value = (((self.value_count as f32) / 100.0).sin() + 1.0) * 100.0 * self.dampen;
+            let large_value = self.value_count;
             Some((sin_value) as u32)
         }
     }
