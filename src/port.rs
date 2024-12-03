@@ -18,7 +18,7 @@ pub mod port {
         fn next(&mut self) -> Option<Self::Item> {
             self.value_count += 1;
             self.dampen *= 1.0;
-            let large_value = (2u32.pow(32u32) / 2) * (self.value_count % 2);
+            let large_value = (2u32.pow(31u32) / 1) * (self.value_count % 2);
             Some(large_value)
         }
     }
