@@ -8,7 +8,8 @@ void loop() {
 
   Serial.write(0b00000000);
   Serial.write(0b00000000);
-  Serial.write(0b00000000);
   Serial.write(0b11111110);
+  Serial.write(0b00000000);
+
   Serial.flush();
 }

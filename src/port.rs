@@ -19,8 +19,8 @@ pub mod port {
             self.value_count += 1;
             self.dampen *= 1.0;
             let sin_value = (((self.value_count as f32) / 100.0).sin() + 1.0) * 100.0 * self.dampen;
-            let large_value = self.value_count;
-            Some((sin_value) as u32)
+            let large_value = 2u32.pow(31u32) * (self.value_count % 2);
+            Some(large_value)
         }
     }
     impl Port for DummyPort {
@@ -55,11 +55,11 @@ pub mod port {
                     return None;
                 }
             };
-            let value = (if self.big_endian {
+            let value = if self.big_endian {
                 u32::from_be_bytes(serial_buf)
             } else {
                 u32::from_le_bytes(serial_buf)
-            }) as u32;
+            };
             self.current_value = value;
             Some(value)
         }

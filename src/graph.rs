@@ -45,25 +45,25 @@ pub mod graph {
                 self.x_scale,
                 0.0,
                 0.0,
-                self.y_scale,
+                self.y_scale * bounds.size().height / 2u32.pow(31u32) as f32,
                 self.x_shift,
                 self.y_shift,
             );
             let mut lines = canvas::path::Builder::new();
             let graph_values = &self.values[start..];
-            lines.move_to(iced::Point::new(0.0, graph_values[0] as f32));
+            lines.move_to((0.0, graph_values[0] as f32).into());
             graph_values
                 .iter()
                 .enumerate()
                 .skip(1)
                 .for_each(|(i, value)| lines.line_to(iced::Point::new(i as f32, *value as f32)));
             let stroke: canvas::Stroke = canvas::Stroke {
-                line_cap: canvas::LineCap::Round,
+                line_cap: canvas::LineCap::Butt,
                 line_dash: canvas::LineDash {
                     offset: 0,
                     segments: &[1.0, 0.0],
                 },
-                line_join: canvas::LineJoin::Bevel,
+                line_join: canvas::LineJoin::Miter,
                 width: 1.0,
                 style: canvas::Style::Solid(theme.palette().text),
             };
