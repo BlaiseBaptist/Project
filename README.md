@@ -12,6 +12,7 @@ It doesn't lmao
 
 ## Issues Currently Being Fixed
 1. improve scale on graph to make it log
+1. Don't call graph when none from port
 
 ## Future Issues
 
