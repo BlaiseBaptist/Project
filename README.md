@@ -11,8 +11,9 @@ A rust app made to read any RS - 232 data specifically for Arduino and sensors c
 It doesn't lmao
 
 ## Issues Currently Being Fixed
+
 1. improve scale on graph and/or use log scale
-1. Don't call graph when none from port
+1. Don't draw off the screen 
 
 ## Future Issues
 
@@ -20,4 +21,3 @@ It doesn't lmao
 1. figure out how to deal with different types of data from ports
 1. improve UI
 1. add keyboard shortcuts
-1. Don't draw off the screen 
