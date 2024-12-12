@@ -13,7 +13,6 @@ It doesn't lmao
 ## Issues Currently Being Fixed
 
 1. improve scale on graph and/or use log scale
-1. Don't draw off the screen 
 
 ## Future Issues
 
@@ -22,3 +21,4 @@ It doesn't lmao
 1. Clarify next point
 1. improve UI
 1. add keyboard shortcuts
+1. reduce memory usage of stored data

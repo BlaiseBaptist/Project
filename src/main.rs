@@ -112,7 +112,7 @@ impl App {
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
                     pane,
-                    Pane::Graph(Graph::new(0.0, 0.0, port::port::from_string(&self.port))),
+                    Pane::Graph(Graph::new(port::port::from_string(&self.port))),
                 );
                 self.open_delay = 10;
             }
@@ -143,7 +143,7 @@ impl App {
         }
     }
     fn subscription(&self) -> Subscription<Message> {
-        time::every(Duration::from_nanos(10)).map(|_| Message::Update)
+        time::every(Duration::from_nanos(1)).map(|_| Message::Update)
     }
 }
 fn controls_pane(

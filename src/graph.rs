@@ -11,13 +11,13 @@ pub mod graph {
         pub port: Box<dyn port::port::Port>,
     }
     impl Graph {
-        pub fn new(x_shift: f32, y_shift: f32, port: Box<dyn port::port::Port>) -> Graph {
+        pub fn new(port: Box<dyn port::port::Port>) -> Graph {
             Graph {
                 values: vec![0],
                 x_scale: 1.0,
                 y_scale: 1.0,
-                x_shift,
-                y_shift,
+                x_shift: 0.0,
+                y_shift: 0.0,
                 port,
             }
         }
@@ -45,18 +45,26 @@ pub mod graph {
                 self.x_scale,
                 0.0,
                 0.0,
-                -self.y_scale * bounds.size().height / 2u32.pow(31u32) as f32,
+                -self.y_scale * bounds.size().height,
                 self.x_shift,
                 self.y_shift + bounds.size().height,
             );
+            let height = (-scale.m32 / scale.m22) as u32;
             let mut lines = canvas::path::Builder::new();
-            let graph_values = &self.values[start..];
-            lines.move_to((0.0, graph_values[0] as f32).into());
-            graph_values
+            self.values
                 .iter()
+                .skip(start)
                 .enumerate()
-                .skip(1)
-                .for_each(|(i, value)| lines.line_to(iced::Point::new(i as f32, *value as f32)));
+                .for_each(|(i, value)| {
+                    lines.line_to(iced::Point::new(
+                        i as f32,
+                        if value < &height {
+                            *value as f32
+                        } else {
+                            height as f32
+                        },
+                    ))
+                });
             let stroke: canvas::Stroke = canvas::Stroke {
                 line_cap: canvas::LineCap::Butt,
                 line_dash: canvas::LineDash {
