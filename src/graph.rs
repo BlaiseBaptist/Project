@@ -1,23 +1,20 @@
 pub mod graph {
     use crate::port;
-    use iced::{mouse, widget::canvas, Rectangle, Renderer, Theme};
+    use iced::{
+        mouse,
+        widget::canvas,
+        widget::canvas::{event, Event},
+        Rectangle, Renderer, Theme,
+    };
     #[derive(Debug)]
     pub struct Graph {
         pub values: Vec<u32>,
-        pub x_scale: f32,
-        pub y_scale: f32,
-        pub x_shift: f32,
-        pub y_shift: f32,
         pub port: Box<dyn port::port::Port>,
     }
     impl Graph {
         pub fn new(port: Box<dyn port::port::Port>) -> Graph {
             Graph {
                 values: vec![0],
-                x_scale: 1.0,
-                y_scale: 1.0,
-                x_shift: 0.0,
-                y_shift: 0.0,
                 port,
             }
         }
@@ -26,10 +23,10 @@ pub mod graph {
         }
     }
     impl<Message> canvas::Program<Message> for Graph {
-        type State = Vec<u32>;
+        type State = [f32; 2];
         fn draw(
             &self,
-            _state: &Self::State,
+            state: &Self::State,
             renderer: &Renderer,
             theme: &Theme,
             bounds: Rectangle,
@@ -37,17 +34,17 @@ pub mod graph {
         ) -> Vec<canvas::Geometry> {
             let mut frame = canvas::Frame::new(renderer, bounds.size());
             let len = self.values.len();
-            let start = match len.checked_sub(bounds.size().width as usize) {
+            let start = match len.checked_sub((bounds.size().width / state[0].abs()) as usize) {
                 Some(v) => v,
                 _ => 0,
             };
             let scale = canvas::path::lyon_path::geom::euclid::Transform2D::new(
-                self.x_scale,
+                state[0].abs(),
                 0.0,
                 0.0,
-                -self.y_scale * bounds.size().height,
-                self.x_shift,
-                self.y_shift + bounds.size().height,
+                -bounds.size().height / state[1],
+                0.0,
+                bounds.size().height,
             );
             let height = (-scale.m32 / scale.m22) as u32;
             let mut lines = canvas::path::Builder::new();
@@ -77,6 +74,27 @@ pub mod graph {
             };
             frame.stroke(&lines.build().transform(&scale), stroke);
             vec![frame.into_geometry()]
+        }
+        fn update(
+            &self,
+            state: &mut Self::State,
+            event: Event,
+            _bounds: Rectangle,
+            _cursor: mouse::Cursor,
+        ) -> (event::Status, Option<Message>) {
+            match event {
+                Event::Mouse(e) => match e {
+                    mouse::Event::WheelScrolled {
+                        delta: mouse::ScrollDelta::Pixels { x, y },
+                    } => {
+                        state[0] += x / 100.0;
+                        state[1] += y;
+                    }
+                    _ => {}
+                },
+                _ => {}
+            };
+            (event::Status::Ignored, None)
         }
     }
 }

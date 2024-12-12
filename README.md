@@ -13,6 +13,7 @@ It doesn't lmao
 ## Issues Currently Being Fixed
 
 1. improve scale on graph and/or use log scale
+1. use events from the canvas to re-scale
 
 ## Future Issues
 
