@@ -19,5 +19,6 @@ It doesn't lmao
 
 1. go from time based update to waiting based updates for the graph and move that to the port
 1. figure out how to deal with different types of data from ports
+1. Clarify next point
 1. improve UI
 1. add keyboard shortcuts
