@@ -44,7 +44,7 @@ pub mod graph {
                 0.0,
                 -bounds.size().height / state[1],
                 0.0,
-                bounds.size().height,
+                bounds.size().height - 10.0,
             );
             let height = (-scale.m32 / scale.m22) as u32;
             let mut lines = canvas::path::Builder::new();
@@ -79,16 +79,20 @@ pub mod graph {
             &self,
             state: &mut Self::State,
             event: Event,
-            _bounds: Rectangle,
+            bounds: Rectangle,
             _cursor: mouse::Cursor,
         ) -> (event::Status, Option<Message>) {
+            if state[0] < bounds.size().width / (10.0 * self.values.len() as f32) {
+                state[0] = bounds.size().width / (10.0 * self.values.len() as f32);
+            }
             match event {
                 Event::Mouse(e) => match e {
                     mouse::Event::WheelScrolled {
                         delta: mouse::ScrollDelta::Pixels { x, y },
                     } => {
-                        state[0] += x / 100.0;
+                        state[0] += x / 1000.0;
                         state[1] += y;
+                        return (event::Status::Captured, None);
                     }
                     _ => {}
                 },
