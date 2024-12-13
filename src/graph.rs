@@ -14,7 +14,7 @@ pub mod graph {
     impl Graph {
         pub fn new(port: Box<dyn port::port::Port>) -> Graph {
             Graph {
-                values: vec![0],
+                values: vec![],
                 port,
             }
         }
@@ -32,25 +32,27 @@ pub mod graph {
             bounds: Rectangle,
             _cursor: mouse::Cursor,
         ) -> Vec<canvas::Geometry> {
-            let mut frame = canvas::Frame::new(renderer, bounds.size());
             let len = self.values.len();
-            let start = match len.checked_sub((bounds.size().width * state.x_scale) as usize) {
-                Some(v) => v,
-                _ => 0,
-            };
+            if len < bounds.size().width as usize {
+                return vec![];
+            }
+            let mut frame = canvas::Frame::new(renderer, bounds.size());
             let scale = canvas::path::lyon_path::geom::euclid::Transform2D::new(
                 1.0 / state.x_scale,
                 0.0,
                 0.0,
                 -bounds.size().height / state.y_scale,
-                state.x_shift - 1.0,
-                bounds.size().height + state.y_shift - 10.0,
+                state.x_shift,
+                bounds.size().height + state.y_shift,
             );
+            let end: usize = ((bounds.size().width - state.x_shift) * state.x_scale) as usize;
+            let start: usize = (-state.x_shift * state.x_scale) as usize;
             let height = (-scale.m32 / scale.m22) as u32;
             let mut lines = canvas::path::Builder::new();
             self.values
                 .iter()
-                .take(start)
+                .skip(start)
+                .take(end)
                 .enumerate()
                 .for_each(|(i, value)| {
                     lines.line_to(Point::new(
@@ -58,7 +60,7 @@ pub mod graph {
                         if value < &height {
                             *value as f32
                         } else {
-                            height as f32 + 10.0
+                            height as f32
                         },
                     ))
                 });
@@ -83,12 +85,15 @@ pub mod graph {
             cursor: mouse::Cursor,
         ) -> (event::Status, Option<Message>) {
             let mut event_status = event::Status::Ignored;
+            if self.values.len() < bounds.size().width as usize {
+                return (event_status, None);
+            }
             match event {
                 Event::Mouse(e) => match e {
                     mouse::Event::WheelScrolled {
                         delta: mouse::ScrollDelta::Pixels { x, y },
                     } => {
-                        state.x_scale += x / 100.0;
+                        state.x_scale -= x / 10.0;
                         state.y_scale += y;
                         event_status = event::Status::Captured;
                     }
@@ -114,16 +119,16 @@ pub mod graph {
                 },
                 _ => {}
             };
-            if state.x_scale < 2.0 {
-                state.x_scale = 2.0;
-            }
-            if state.x_scale > self.values.len() as f32 / (bounds.size().width * 2.0) {
-                state.x_scale = self.values.len() as f32 / (bounds.size().width * 2.0);
-            }
             if state.y_scale < 2.0 {
                 state.y_scale = 2.0;
             }
-            (event_status, None)
+            if state.x_scale > self.values.len() as f32 * 10.0 / (bounds.size().width) {
+                state.x_scale = self.values.len() as f32 * 10.0 / (bounds.size().width);
+            }
+            if state.x_scale < 0.5 {
+                state.x_scale = 0.5;
+            }
+            return (event_status, None);
         }
     }
     #[derive(Debug)]
@@ -137,10 +142,10 @@ pub mod graph {
     impl std::default::Default for GraphControls {
         fn default() -> GraphControls {
             GraphControls {
-                x_scale: 1.0,
-                y_scale: 1.0,
+                x_scale: 2.0,
+                y_scale: 600.0,
                 x_shift: 0.0,
-                y_shift: 0.0,
+                y_shift: -10.0,
                 last_mouse_click: None,
             }
         }
