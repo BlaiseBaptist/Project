@@ -60,7 +60,7 @@ pub mod graph {
                         if value < &height {
                             *value as f32
                         } else {
-                            height as f32
+                            height as f32 * 1.1
                         },
                     ))
                 });
@@ -74,7 +74,24 @@ pub mod graph {
                 width: 1.0,
                 style: canvas::Style::Solid(theme.palette().text),
             };
+            let axis_numbers: Vec<String> = (start as usize..=end as usize)
+                .step_by((end - start) / 1)
+                .map(|v| v.to_string())
+                .collect();
+            let horizontal_axis_text = canvas::Text {
+                color: theme.palette().text,
+                content: axis_numbers.join(" to "),
+                font: iced::Font::DEFAULT,
+                horizontal_alignment: iced::alignment::Horizontal::Left,
+                vertical_alignment: iced::alignment::Vertical::Bottom,
+                line_height: 1.0.into(),
+                position: Point::new(0.0, bounds.size().height - 10.0),
+                size: 20.0.into(),
+                shaping: iced::widget::text::Shaping::Basic,
+            };
             frame.stroke(&lines.build().transform(&scale), stroke);
+            horizontal_axis_text
+                .draw_with(|path, color| frame.stroke(&path, stroke.with_color(color)));
             vec![frame.into_geometry()]
         }
         fn update(
@@ -94,7 +111,7 @@ pub mod graph {
                         delta: mouse::ScrollDelta::Pixels { x, y },
                     } => {
                         state.x_scale -= x / 10.0;
-                        state.y_scale += y;
+                        state.y_scale *= 1.0 + (y / 1000.0);
                         event_status = event::Status::Captured;
                     }
                     mouse::Event::ButtonPressed(mouse::Button::Left) => {
