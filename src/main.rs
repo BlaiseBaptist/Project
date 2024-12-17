@@ -7,7 +7,7 @@ use iced::{
     Fill, Subscription,
 };
 use serialport::SerialPortInfo;
-use std::time::Duration;
+use std::{fs, io::Write, time::Duration};
 mod graph;
 mod port;
 mod style;
@@ -88,16 +88,18 @@ impl App {
                 self.panes.drop(pane, target)
             }
             Message::Move(_) => {}
-            Message::Save => write_file(
-                self.panes
-                    .iter()
-                    .filter_map(|(_p, t)| match t {
-                        Pane::Graph(g) => Some(&g.values),
-                        _ => None,
-                    })
-                    .collect(),
-                &self.path,
-            ),
+            Message::Save => {
+                write_file(
+                    self.panes
+                        .iter()
+                        .filter_map(|(_p, t)| match t {
+                            Pane::Graph(g) => Some(&g.values),
+                            _ => None,
+                        })
+                        .collect(),
+                    &self.path,
+                );
+            }
             Message::PathChanged(path) => self.path = path,
             Message::ChangePort(port) => {
                 let mut ports = serialport::available_ports().unwrap();
@@ -204,8 +206,16 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     .padding(10)
     .style(style::style::graph)
 }
-fn write_file(_data: Vec<&Vec<u32>>, _path: &String) {
-    todo!()
+fn write_file(data: Vec<&Vec<u32>>, path: &String) -> std::io::Result<()> {
+    let mut f = fs::File::create(path)?;
+    f.write_all(
+        &data
+            .into_iter()
+            .flatten()
+            .flat_map(|v| v.to_be_bytes())
+            .collect::<Vec<u8>>(),
+    )?;
+    Ok(())
 }
 fn main() {
     let _ = iced::application("Graph", App::update, App::view)
