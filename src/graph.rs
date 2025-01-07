@@ -74,24 +74,39 @@ pub mod graph {
                 width: 1.0,
                 style: canvas::Style::Solid(theme.palette().text),
             };
-            let axis_numbers: Vec<String> = (start as usize..=end as usize)
-                .step_by((end - start) / 1)
-                .map(|v| v.to_string())
-                .collect();
-            let horizontal_axis_text = canvas::Text {
-                color: theme.palette().text,
-                content: axis_numbers.join(" to "),
-                font: iced::Font::DEFAULT,
-                horizontal_alignment: iced::alignment::Horizontal::Left,
-                vertical_alignment: iced::alignment::Vertical::Bottom,
-                line_height: 1.0.into(),
-                position: Point::new(0.0, bounds.size().height - 10.0),
-                size: 20.0.into(),
-                shaping: iced::widget::text::Shaping::Basic,
-            };
             frame.stroke(&lines.build().transform(&scale), stroke);
-            horizontal_axis_text
+            for x in (start as usize..=end as usize)
+                .step_by((end - start) / 10)
+                .enumerate()
+            {
+                canvas::Text {
+                    color: theme.palette().text,
+                    content: (x.1).to_string(),
+                    font: iced::Font::DEFAULT,
+                    horizontal_alignment: match x.0 {
+                        0 => iced::alignment::Horizontal::Left,
+                        10 => iced::alignment::Horizontal::Right,
+                        _ => iced::alignment::Horizontal::Center,
+                    },
+                    vertical_alignment: iced::alignment::Vertical::Bottom,
+                    line_height: 1.0.into(),
+                    position: Point::new(
+                        x.0 as f32 * bounds.size().width / 10.0,
+                        bounds.size().height - 10.0,
+                    ),
+                    size: 20.0.into(),
+                    shaping: iced::widget::text::Shaping::Basic,
+                }
                 .draw_with(|path, color| frame.stroke(&path, stroke.with_color(color)));
+                let graph_line = canvas::Path::line(
+                    Point::new(
+                        x.0 as f32 * bounds.size().width / 10.0,
+                        bounds.size().height - 20.0,
+                    ),
+                    Point::new(x.0 as f32 * bounds.size().width / 10.0, 0.0),
+                );
+                frame.stroke(&graph_line, stroke.with_color(theme.palette().text));
+            }
             vec![frame.into_geometry()]
         }
         fn update(

@@ -89,7 +89,7 @@ impl App {
             }
             Message::Move(_) => {}
             Message::Save => {
-                write_file(
+                let _ = write_file(
                     self.panes
                         .iter()
                         .filter_map(|(_p, t)| match t {
