@@ -30,10 +30,10 @@ pub mod port {
     }
     impl std::default::Default for DummyPort {
         fn default() -> Self {
-            return DummyPort {
+            DummyPort {
                 value_count: 0,
                 dampen: 1.0,
-            };
+            }
         }
     }
     #[derive(Debug)]
@@ -45,10 +45,10 @@ pub mod port {
     impl Iterator for PhysicalPort {
         type Item = u32;
         fn next(&mut self) -> Option<Self::Item> {
-            let mut serial_buf = [0b0 as u8; 4];
+            let mut serial_buf = [0b0_u8; 4];
             match self.port.bytes_to_read().ok()? {
                 4.. => {
-                    self.port.read(&mut serial_buf).ok()?;
+                    self.port.read_exact(&mut serial_buf).ok()?;
                 }
                 _ => {
                     return None;
@@ -65,12 +65,12 @@ pub mod port {
     }
     impl Port for PhysicalPort {
         fn endian_value(&self) -> String {
-            return (if self.big_endian {
+            (if self.big_endian {
                 "big endian"
             } else {
                 "little endian"
             })
-            .to_string();
+            .to_string()
         }
         fn swap_endianness(&mut self) {
             println!("current value: {}", self.current_value);

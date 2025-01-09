@@ -52,7 +52,7 @@ impl App {
         App {
             panes: g_state,
             path: "graph1.csv".to_string(),
-            ports: ports,
+            ports,
             port: "dummy".to_string(),
             open_delay: 0,
         }
@@ -130,13 +130,7 @@ impl App {
                     let _: Vec<_> = self
                         .panes
                         .iter_mut()
-                        .map(|(_, t)| match t {
-                            Pane::Graph(g) => match g.port.next() {
-                                Some(v) => g.values.push(v),
-                                None => {}
-                            },
-                            _ => {}
-                        })
+                        .map(|(_, t)| if let Pane::Graph(g) = t { if let Some(v) = g.port.next() { g.values.push(v) } })
                         .collect();
                 } else {
                     self.open_delay -= 1

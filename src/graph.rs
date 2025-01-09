@@ -75,7 +75,7 @@ pub mod graph {
                 style: canvas::Style::Solid(theme.palette().text),
             };
             frame.stroke(&lines.build().transform(&scale), stroke);
-            for x in (start as usize..=end as usize)
+            for x in (start..=end)
                 .step_by((end - start) / 10)
                 .enumerate()
             {
@@ -120,37 +120,31 @@ pub mod graph {
             if self.values.len() < bounds.size().width as usize {
                 return (event_status, None);
             }
-            match event {
-                Event::Mouse(e) => match e {
-                    mouse::Event::WheelScrolled {
-                        delta: mouse::ScrollDelta::Pixels { x, y },
-                    } => {
-                        state.x_scale -= x / 10.0;
-                        state.y_scale *= 1.0 + (y / 1000.0);
-                        event_status = event::Status::Captured;
-                    }
-                    mouse::Event::ButtonPressed(mouse::Button::Left) => {
-                        state.last_mouse_click = (|| -> Option<Point> {
-                            Some(
-                                cursor.position()?
-                                    + iced::Vector::new(-state.x_shift, -state.y_shift),
-                            )
-                        })();
-                    }
-                    mouse::Event::ButtonReleased(mouse::Button::Left) => {
-                        state.last_mouse_click = None
-                    }
-                    mouse::Event::CursorMoved { position } => match state.last_mouse_click {
-                        Some(last_position) => {
-                            state.x_shift = position.x - last_position.x;
-                            state.y_shift = position.y - last_position.y;
-                        }
-                        None => {}
-                    },
-                    _ => {}
+            if let Event::Mouse(e) = event { match e {
+                mouse::Event::WheelScrolled {
+                    delta: mouse::ScrollDelta::Pixels { x, y },
+                } => {
+                    state.x_scale -= x / 10.0;
+                    state.y_scale *= 1.0 + (y / 1000.0);
+                    event_status = event::Status::Captured;
+                }
+                mouse::Event::ButtonPressed(mouse::Button::Left) => {
+                    state.last_mouse_click = (|| -> Option<Point> {
+                        Some(
+                            cursor.position()?
+                                + iced::Vector::new(-state.x_shift, -state.y_shift),
+                        )
+                    })();
+                }
+                mouse::Event::ButtonReleased(mouse::Button::Left) => {
+                    state.last_mouse_click = None
+                }
+                mouse::Event::CursorMoved { position } => if let Some(last_position) = state.last_mouse_click {
+                    state.x_shift = position.x - last_position.x;
+                    state.y_shift = position.y - last_position.y;
                 },
                 _ => {}
-            };
+            } };
             if state.y_scale < 2.0 {
                 state.y_scale = 2.0;
             }
@@ -160,7 +154,7 @@ pub mod graph {
             if state.x_scale < 0.5 {
                 state.x_scale = 0.5;
             }
-            return (event_status, None);
+            (event_status, None)
         }
     }
     #[derive(Debug)]
