@@ -149,7 +149,7 @@ impl App {
     }
 }
 fn controls_pane(
-    ports: &Vec<SerialPortInfo>,
+    ports: &[SerialPortInfo],
     current_port: String,
     path: String,
     pane: pane_grid::Pane,
@@ -209,11 +209,15 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
 fn write_file(data: Vec<&Vec<u32>>, path: &String) -> std::io::Result<()> {
     let mut f = fs::File::create(path)?;
     f.write_all(
-        &data
-            .into_iter()
-            .flatten()
-            .flat_map(|v| v.to_be_bytes())
-            .collect::<Vec<u8>>(),
+        data.iter()
+            .map(|vec| {
+                vec.iter()
+                    .map(|val| val.to_string() + ",")
+                    .collect::<String>()
+                    + "\n"
+            })
+            .collect::<String>()
+            .as_bytes(),
     )?;
     Ok(())
 }
