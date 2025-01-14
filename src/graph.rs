@@ -75,8 +75,44 @@ pub mod graph {
                 style: canvas::Style::Solid(theme.palette().text),
             };
             frame.stroke(&lines.build().transform(&scale), stroke);
+            let text_size = 16.0;
             if end < 10 {
                 return vec![frame.into_geometry()];
+            }
+            if height < 5 {
+                return vec![frame.into_geometry()];
+            }
+            for y in (0..=height as usize)
+                .step_by(height as usize / 5)
+                .enumerate()
+                .skip(1)
+            {
+                canvas::Text {
+                    color: theme.palette().text,
+                    content: (y.1).to_string(),
+                    font: iced::Font::DEFAULT,
+                    horizontal_alignment: iced::alignment::Horizontal::Left,
+                    vertical_alignment: iced::alignment::Vertical::Bottom,
+                    line_height: 1.0.into(),
+                    position: Point::new(
+                        0.0,
+                        bounds.size().height - 10.0 - y.0 as f32 * bounds.size().height / 4.0,
+                    ),
+                    size: text_size.into(),
+                    shaping: iced::widget::text::Shaping::Basic,
+                }
+                .draw_with(|path, color| frame.stroke(&path, stroke.with_color(color)));
+                let graph_line = canvas::Path::line(
+                    Point::new(
+                        bounds.size().width,
+                        bounds.size().height - 10.0 - y.0 as f32 * bounds.size().height / 4.0,
+                    ),
+                    Point::new(
+                        0.0,
+                        bounds.size().height - 10.0 - y.0 as f32 * bounds.size().height / 4.0,
+                    ),
+                );
+                frame.stroke(&graph_line, stroke.with_color(theme.palette().text));
             }
             for x in (start..=end).step_by((end - start) / 10).enumerate() {
                 canvas::Text {
@@ -94,7 +130,7 @@ pub mod graph {
                         x.0 as f32 * bounds.size().width / 10.0,
                         bounds.size().height - 10.0,
                     ),
-                    size: 20.0.into(),
+                    size: text_size.into(),
                     shaping: iced::widget::text::Shaping::Basic,
                 }
                 .draw_with(|path, color| frame.stroke(&path, stroke.with_color(color)));
