@@ -130,7 +130,13 @@ impl App {
                     let _: Vec<_> = self
                         .panes
                         .iter_mut()
-                        .map(|(_, t)| if let Pane::Graph(g) = t { if let Some(v) = g.port.next() { g.values.push(v) } })
+                        .map(|(_, t)| {
+                            if let Pane::Graph(g) = t {
+                                if let Some(v) = g.port.next() {
+                                    g.values.push(v)
+                                }
+                            }
+                        })
                         .collect();
                 } else {
                     self.open_delay -= 1
@@ -202,16 +208,16 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
 }
 fn write_file(data: Vec<&Vec<u32>>, path: &String) -> std::io::Result<()> {
     let mut f = fs::File::create(path)?;
-    f.write_all(
+    write!(
+        f,
+        "{}",
         data.iter()
-            .map(|vec| {
-                vec.iter()
-                    .map(|val| val.to_string() + ",")
-                    .collect::<String>()
-                    + "\n"
-            })
+            .map(|vec| vec
+                .iter()
+                .map(|val| val.to_string() + ";")
+                .collect::<String>()
+                + ",")
             .collect::<String>()
-            .as_bytes(),
     )?;
     Ok(())
 }
