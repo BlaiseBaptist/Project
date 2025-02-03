@@ -208,17 +208,22 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
 }
 fn write_file(data: Vec<&Vec<u32>>, path: &String) -> std::io::Result<()> {
     let mut f = fs::File::create(path)?;
-    write!(
-        f,
-        "{}",
-        data.iter()
-            .map(|vec| vec
-                .iter()
-                .map(|val| val.to_string() + ";")
+    println!("{}", data[data.len() - 1].len());
+    for index in 0..data[data.len() - 1].len() {
+        writeln!(
+            f,
+            "{}",
+            data.iter()
+                .map(
+                    |vec| if let Some(x) = vec.get(data[data.len() - 1].len() - index - 1) {
+                        x.to_string() + ","
+                    } else {
+                        ",".to_string()
+                    }
+                )
                 .collect::<String>()
-                + ",")
-            .collect::<String>()
-    )?;
+        )?
+    }
     Ok(())
 }
 fn main() {
