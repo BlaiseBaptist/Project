@@ -8,7 +8,7 @@ pub mod graph {
     };
     #[derive(Debug)]
     pub struct Graph {
-        pub values: Vec<u32>,
+        pub values: Vec<f32>,
         pub port: Box<dyn port::port::Port>,
     }
     impl Graph {
@@ -47,7 +47,7 @@ pub mod graph {
             );
             let end: usize = ((bounds.size().width - state.x_shift) * state.x_scale) as usize;
             let start: usize = (-state.x_shift * state.x_scale) as usize;
-            let height = (-scale.m32 / scale.m22) as u32;
+            let height = -scale.m32 / scale.m22;
             let mut lines = canvas::path::Builder::new();
             self.values
                 .iter()
@@ -58,9 +58,9 @@ pub mod graph {
                     lines.line_to(Point::new(
                         i as f32,
                         if value < &height {
-                            *value as f32
+                            *value
                         } else {
-                            height as f32 * 1.1
+                            height * 1.1
                         },
                     ))
                 });
@@ -79,7 +79,7 @@ pub mod graph {
             if end < 10 {
                 return vec![frame.into_geometry()];
             }
-            if height < 5 {
+            if height < 5.0 {
                 return vec![frame.into_geometry()];
             }
             for y in (0..=height as usize)

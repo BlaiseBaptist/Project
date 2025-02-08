@@ -2,8 +2,9 @@ pub mod port {
     use serialport;
     use std::fmt::Debug;
     use std::time::Duration;
+    type Item = f32;
     #[allow(dead_code)]
-    pub trait Port: Debug + Iterator<Item = u32> {
+    pub trait Port: Debug + Iterator<Item = Item> {
         fn endian_value(&self) -> String;
         fn swap_endianness(&mut self);
     }
@@ -13,13 +14,13 @@ pub mod port {
         dampen: f32,
     }
     impl Iterator for DummyPort {
-        type Item = u32;
+        type Item = Item;
         #[allow(unused_mut)]
         fn next(&mut self) -> Option<Self::Item> {
             self.value_count += 1;
             self.dampen *= 1.0;
             let large_value = 256.0 * (((self.value_count as f32) / 100.0).sin() + 1.0);
-            Some(large_value as u32)
+            Some(large_value)
         }
     }
     impl Port for DummyPort {
@@ -40,10 +41,10 @@ pub mod port {
     pub struct PhysicalPort {
         pub port: Box<dyn serialport::SerialPort>,
         pub big_endian: bool,
-        current_value: u32,
+        current_value: Item,
     }
     impl Iterator for PhysicalPort {
-        type Item = u32;
+        type Item = Item;
         fn next(&mut self) -> Option<Self::Item> {
             let mut serial_buf = [0b0_u8; 4];
             match self.port.bytes_to_read().ok()? {
@@ -55,9 +56,9 @@ pub mod port {
                 }
             };
             let value = if self.big_endian {
-                u32::from_be_bytes(serial_buf)
+                Item::from_be_bytes(serial_buf)
             } else {
-                u32::from_le_bytes(serial_buf)
+                Item::from_le_bytes(serial_buf)
             };
             self.current_value = value;
             Some(value)
@@ -82,7 +83,7 @@ pub mod port {
             todo!()
         }
     }
-    pub fn from_string(s: &str) -> Box<dyn Port> {
+    pub fn from_string(s: &str) -> Box<dyn Port<Item = Item>> {
         if s == "dummy" {
             return Box::new(DummyPort::default());
         };
@@ -97,13 +98,13 @@ pub mod port {
             }
         }
     }
-    fn try_open(s: &str) -> Result<impl Port, serialport::Error> {
+    fn try_open(s: &str) -> Result<impl Port<Item = Item>, serialport::Error> {
         let port = serialport::new(s, 9600)
             .timeout(Duration::from_millis(100))
             .open()?;
         Ok(PhysicalPort {
             port,
-            current_value: 0,
+            current_value: 0.0,
             big_endian: true,
         })
     }

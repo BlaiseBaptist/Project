@@ -206,7 +206,7 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     .padding(10)
     .style(style::style::graph)
 }
-fn write_file(data: Vec<&Vec<u32>>, path: &String) -> std::io::Result<()> {
+fn write_file(data: Vec<&Vec<f32>>, path: &String) -> std::io::Result<()> {
     let mut f = fs::File::create(path)?;
     println!("{}", data[data.len() - 1].len());
     for index in 0..data[data.len() - 1].len() {
