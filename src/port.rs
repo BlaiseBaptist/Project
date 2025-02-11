@@ -40,7 +40,7 @@ pub mod port {
     #[derive(Debug)]
     pub struct PhysicalPort {
         pub port: Box<dyn serialport::SerialPort>,
-        pub big_endian: bool,
+        converter: converter,
         current_value: Item,
     }
     impl Iterator for PhysicalPort {
@@ -55,27 +55,29 @@ pub mod port {
                     return None;
                 }
             };
-            let value = if self.big_endian {
-                Item::from_be_bytes(serial_buf)
-            } else {
-                Item::from_le_bytes(serial_buf)
-            };
+            let value = convert(&self.converter, serial_buf);
             self.current_value = value;
             Some(value)
         }
     }
     impl Port for PhysicalPort {
         fn endian_value(&self) -> String {
-            (if self.big_endian {
-                "big endian"
-            } else {
-                "little endian"
-            })
+            match self.converter {
+                converter::be_f32 => "be_f32",
+                converter::le_f32 => "le_f32",
+                converter::be_u32 => "be_u32",
+                converter::le_u32 => "le_u32",
+            }
             .to_string()
         }
         fn swap_endianness(&mut self) {
+            self.converter = match self.converter {
+                converter::be_f32 => converter::le_f32,
+                converter::le_f32 => converter::be_u32,
+                converter::be_u32 => converter::le_u32,
+                converter::le_u32 => converter::be_f32,
+            };
             println!("current value: {}", self.current_value);
-            self.big_endian = !self.big_endian;
         }
     }
     impl Clone for PhysicalPort {
@@ -98,6 +100,22 @@ pub mod port {
             }
         }
     }
+    #[allow(non_camel_case_types)]
+    #[derive(Debug)]
+    enum converter {
+        be_f32,
+        le_f32,
+        be_u32,
+        le_u32,
+    }
+    fn convert(converter: &converter, data: [u8; 4]) -> Item {
+        match converter {
+            converter::be_f32 => f32::from_be_bytes(data),
+            converter::le_f32 => f32::from_le_bytes(data),
+            converter::be_u32 => u32::from_be_bytes(data) as f32,
+            converter::le_u32 => u32::from_le_bytes(data) as f32,
+        }
+    }
     fn try_open(s: &str) -> Result<impl Port<Item = Item>, serialport::Error> {
         let port = serialport::new(s, 9600)
             .timeout(Duration::from_millis(100))
@@ -105,7 +123,7 @@ pub mod port {
         Ok(PhysicalPort {
             port,
             current_value: 0.0,
-            big_endian: true,
+            converter: converter::be_f32,
         })
     }
 }

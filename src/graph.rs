@@ -57,11 +57,7 @@ pub mod graph {
                 .for_each(|(i, value)| {
                     lines.line_to(Point::new(
                         i as f32,
-                        if value < &height {
-                            *value
-                        } else {
-                            height * 1.1
-                        },
+                        if value < &height { *value } else { height },
                     ))
                 });
             let stroke: canvas::Stroke = canvas::Stroke {
@@ -82,39 +78,39 @@ pub mod graph {
             if height < 5.0 {
                 return vec![frame.into_geometry()];
             }
-            for y in (0..=height as usize)
-                .step_by(height as usize / 5)
-                .enumerate()
-                .skip(1)
-            {
+            println!(
+                "y_shift: {}, y_shift2: {}, scaled_height: {}, real_height: {}",
+                state.y_shift,
+                scale.m32,
+                height,
+                bounds.size().height,
+            );
+            const y_lines: u32 = 3;
+            for y in 1..y_lines + 1 {
+                let line_height = y as f32 * (bounds.size().height) / (1 + y_lines) as f32;
                 canvas::Text {
                     color: theme.palette().text,
-                    content: (y.1).to_string(),
+                    content: (height * (1.0 - (y as f32 / (y_lines + 1) as f32))).to_string(),
                     font: iced::Font::DEFAULT,
                     horizontal_alignment: iced::alignment::Horizontal::Left,
                     vertical_alignment: iced::alignment::Vertical::Bottom,
                     line_height: 1.0.into(),
-                    position: Point::new(
-                        0.0,
-                        bounds.size().height - 10.0 - y.0 as f32 * bounds.size().height / 4.0,
-                    ),
+                    position: Point::new(0.0, line_height),
                     size: text_size.into(),
                     shaping: iced::widget::text::Shaping::Basic,
                 }
                 .draw_with(|path, color| frame.stroke(&path, stroke.with_color(color)));
                 let graph_line = canvas::Path::line(
-                    Point::new(
-                        bounds.size().width,
-                        bounds.size().height - 10.0 - y.0 as f32 * bounds.size().height / 4.0,
-                    ),
-                    Point::new(
-                        0.0,
-                        bounds.size().height - 10.0 - y.0 as f32 * bounds.size().height / 4.0,
-                    ),
+                    Point::new(bounds.size().width, line_height),
+                    Point::new(0.0, line_height),
                 );
                 frame.stroke(&graph_line, stroke.with_color(theme.palette().text));
             }
-            for x in (start..=end).step_by((end - start) / 10).enumerate() {
+            for x in (start..=end)
+                .step_by((end - start) / 10)
+                .enumerate()
+                .skip(1)
+            {
                 canvas::Text {
                     color: theme.palette().text,
                     content: (x.1).to_string(),
