@@ -18,9 +18,9 @@ pub mod port {
         #[allow(unused_mut)]
         fn next(&mut self) -> Option<Self::Item> {
             self.value_count += 1;
-            self.dampen *= 1.0;
-            let large_value = ((self.value_count as f32) / 100.0).sin();
-            Some(large_value)
+            let value = (10000.0 / self.value_count as f32).sin() * self.dampen;
+            self.dampen *= 0.99;
+            Some(value)
         }
     }
     impl Port for DummyPort {
