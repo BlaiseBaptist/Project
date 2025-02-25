@@ -42,14 +42,14 @@ pub mod graph {
                 bounds.size().height + state.y_shift,
             );
             let start: usize = (-scale.m31 / scale.m11) as usize;
-            let max_values = 1000000;
+            let max_values = 100000;
             let end: usize = if bounds.size().width / scale.m11 > max_values as f32 {
                 start + max_values
             } else {
-                ((bounds.size().width - scale.m31) / scale.m11) as usize
+                ((bounds.size().width - scale.m31) / scale.m11) as usize + 1
             };
             let height = -scale.m32 / scale.m22;
-            let bottom = 20.0 + ((bounds.size().height - scale.m32) / scale.m22);
+            let bottom = (bounds.size().height - 20.0 - scale.m32) / scale.m22;
             let mut lines = canvas::path::Builder::new();
             self.values
                 .iter()
@@ -77,7 +77,6 @@ pub mod graph {
                 style: canvas::Style::Solid(theme.palette().text),
             };
             frame.stroke(&lines.build().transform(&scale), stroke);
-            println!("height_range: ({},{})", bottom, height);
             let text_size = 16.0;
             let y_lines = (bounds.size().height / 100.0) as i32;
             let y_sep = bounds.size().height / (y_lines as f32 + 1.0);
@@ -87,7 +86,7 @@ pub mod graph {
                 let line_sep = bounds.size().height - y_sep * y as f32;
                 canvas::Text {
                     color: theme.palette().text,
-                    content: format!("{:.0}", (line_sep - scale.m32) / scale.m22),
+                    content: format!("{0:.2e}", (line_sep - scale.m32) / scale.m22),
                     font: iced::Font::DEFAULT,
                     horizontal_alignment: iced::alignment::Horizontal::Left,
                     vertical_alignment: iced::alignment::Vertical::Bottom,
@@ -107,7 +106,7 @@ pub mod graph {
                 let line_sep = bounds.size().width - x_sep * x as f32;
                 canvas::Text {
                     color: theme.palette().text,
-                    content: format!("{:.0}", (line_sep - scale.m31) / scale.m11),
+                    content: format!("{0:.2e}", (line_sep - scale.m31) / scale.m11),
                     font: iced::Font::DEFAULT,
                     horizontal_alignment: iced::alignment::Horizontal::Center,
                     vertical_alignment: iced::alignment::Vertical::Bottom,
@@ -183,7 +182,7 @@ pub mod graph {
         fn default() -> GraphControls {
             GraphControls {
                 x_scale: -1.0,
-                y_scale: -3.0,
+                y_scale: -1.0,
                 x_shift: 0.0,
                 y_shift: 0.0,
                 last_mouse_click: None,
