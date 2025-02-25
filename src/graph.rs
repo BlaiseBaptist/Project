@@ -32,22 +32,24 @@ pub mod graph {
             bounds: Rectangle,
             _cursor: mouse::Cursor,
         ) -> Vec<canvas::Geometry> {
-            let len = self.values.len();
-            if len < bounds.size().width as usize {
-                return vec![];
-            }
             let mut frame = canvas::Frame::new(renderer, bounds.size());
             let scale = canvas::path::lyon_path::geom::euclid::Transform2D::new(
-                1.0 / state.x_scale,
+                10f32.powf(state.x_scale),
                 0.0,
                 0.0,
-                -bounds.size().height / state.y_scale,
+                -bounds.size().height * 10f32.powf(state.y_scale),
                 state.x_shift,
                 bounds.size().height + state.y_shift,
             );
-            let end: usize = ((bounds.size().width - state.x_shift) * state.x_scale) as usize;
-            let start: usize = (-state.x_shift * state.x_scale) as usize;
+            let start: usize = (-scale.m31 / scale.m11) as usize;
+            let max_values = 1000000;
+            let end: usize = if bounds.size().width / scale.m11 > max_values as f32 {
+                start + max_values
+            } else {
+                ((bounds.size().width - scale.m31) / scale.m11) as usize
+            };
             let height = -scale.m32 / scale.m22;
+            let bottom = 20.0 + ((bounds.size().height - scale.m32) / scale.m22);
             let mut lines = canvas::path::Builder::new();
             self.values
                 .iter()
@@ -57,10 +59,10 @@ pub mod graph {
                 .for_each(|(i, value)| {
                     lines.line_to(Point::new(
                         i as f32,
-                        if value < &height {
-                            *value
-                        } else {
-                            height + 10.0
+                        match value {
+                            v if v > &height => height,
+                            v if v < &bottom => bottom,
+                            _ => *value,
                         },
                     ))
                 });
@@ -75,13 +77,8 @@ pub mod graph {
                 style: canvas::Style::Solid(theme.palette().text),
             };
             frame.stroke(&lines.build().transform(&scale), stroke);
+            println!("height_range: ({},{})", bottom, height);
             let text_size = 16.0;
-            if end < 10 {
-                return vec![frame.into_geometry()];
-            }
-            if height < 5.0 {
-                return vec![frame.into_geometry()];
-            }
             let y_lines = (bounds.size().height / 100.0) as i32;
             let y_sep = bounds.size().height / (y_lines as f32 + 1.0);
             let x_lines = (bounds.size().width / 100.0) as i32;
@@ -147,8 +144,8 @@ pub mod graph {
                     mouse::Event::WheelScrolled {
                         delta: mouse::ScrollDelta::Pixels { x, y },
                     } => {
-                        state.x_scale -= x / 10.0;
-                        state.y_scale *= 1.0 + (y / 1000.0);
+                        state.x_scale += x / 1000.0;
+                        state.y_scale -= y / 1000.0;
                         event_status = event::Status::Captured;
                     }
                     mouse::Event::ButtonPressed(mouse::Button::Left) => {
@@ -171,15 +168,6 @@ pub mod graph {
                     _ => {}
                 }
             };
-            if state.y_scale < 2.0 {
-                state.y_scale = 2.0;
-            }
-            if state.x_scale > self.values.len() as f32 * 10.0 / (bounds.size().width) {
-                state.x_scale = self.values.len() as f32 * 10.0 / (bounds.size().width);
-            }
-            if state.x_scale < 0.5 {
-                state.x_scale = 0.5;
-            }
             (event_status, None)
         }
     }
@@ -194,10 +182,10 @@ pub mod graph {
     impl std::default::Default for GraphControls {
         fn default() -> GraphControls {
             GraphControls {
-                x_scale: 2.0,
-                y_scale: 600.0,
+                x_scale: -1.0,
+                y_scale: -3.0,
                 x_shift: 0.0,
-                y_shift: -10.0,
+                y_shift: 0.0,
                 last_mouse_click: None,
             }
         }
