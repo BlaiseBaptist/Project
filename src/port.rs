@@ -20,6 +20,9 @@ pub mod port {
             self.value_count += 1;
             let value = (10000.0 / self.value_count as f32).sin() * self.dampen;
             self.dampen *= 0.99;
+            if self.dampen < self.value_count as f32 {
+                self.dampen *= 1.1;
+            }
             Some(value)
         }
     }
@@ -67,6 +70,7 @@ pub mod port {
                 converter::le_f32 => "le_f32",
                 converter::be_u32 => "be_u32",
                 converter::le_u32 => "le_u32",
+                converter::u8_to_string => "u8_to_string",
             }
             .to_string()
         }
@@ -75,14 +79,10 @@ pub mod port {
                 converter::be_f32 => converter::le_f32,
                 converter::le_f32 => converter::be_u32,
                 converter::be_u32 => converter::le_u32,
-                converter::le_u32 => converter::be_f32,
+                converter::le_u32 => converter::u8_to_string,
+                converter::u8_to_string => converter::be_f32,
             };
             println!("current value: {}", self.current_value);
-        }
-    }
-    impl Clone for PhysicalPort {
-        fn clone(&self) -> PhysicalPort {
-            todo!()
         }
     }
     pub fn from_string(s: &str) -> Box<dyn Port<Item = Item>> {
@@ -101,12 +101,13 @@ pub mod port {
         }
     }
     #[allow(non_camel_case_types)]
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     enum converter {
         be_f32,
         le_f32,
         be_u32,
         le_u32,
+        u8_to_string,
     }
     fn convert(converter: &converter, data: [u8; 4]) -> Item {
         match converter {
@@ -114,7 +115,16 @@ pub mod port {
             converter::le_f32 => f32::from_le_bytes(data),
             converter::be_u32 => u32::from_be_bytes(data) as f32,
             converter::le_u32 => u32::from_le_bytes(data) as f32,
+            converter::u8_to_string => data
+                .into_iter()
+                .map(|b| char::from(b))
+                .collect::<String>()
+                .parse::<f32>()
+                .unwrap_or(0.0),
         }
+    }
+    fn u8s_to_u16(v1: u8, v2: u8) -> u16 {
+        (v1 as u16) << 8 | v2 as u16
     }
     fn try_open(s: &str) -> Result<impl Port<Item = Item>, serialport::Error> {
         let port = serialport::new(s, 9600)
