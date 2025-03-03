@@ -123,9 +123,6 @@ pub mod port {
                 .unwrap_or(0.0),
         }
     }
-    fn u8s_to_u16(v1: u8, v2: u8) -> u16 {
-        (v1 as u16) << 8 | v2 as u16
-    }
     fn try_open(s: &str) -> Result<impl Port<Item = Item>, serialport::Error> {
         let port = serialport::new(s, 9600)
             .timeout(Duration::from_millis(100))

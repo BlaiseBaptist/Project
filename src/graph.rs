@@ -42,11 +42,11 @@ pub mod graph {
                 bounds.size().height + state.y_shift,
             );
             let start: usize = (-scale.m31 / scale.m11) as usize;
-            let max_values = 100000;
-            let end: usize = if bounds.size().width / scale.m11 > max_values as f32 {
-                start + max_values
+            let end: usize = ((bounds.size().width - scale.m31) / scale.m11) as usize + 1;
+            let step_size = if end - start > self.values.len() {
+                (scale.m11 / 2.0) as usize + 1
             } else {
-                ((bounds.size().width - scale.m31) / scale.m11) as usize + 1
+                1
             };
             let height = -scale.m32 / scale.m22;
             let bottom = (bounds.size().height - 20.0 - scale.m32) / scale.m22;
@@ -56,6 +56,7 @@ pub mod graph {
                 .skip(start)
                 .take(end)
                 .enumerate()
+                .step_by(step_size)
                 .for_each(|(i, value)| {
                     lines.line_to(Point::new(
                         i as f32,
@@ -145,6 +146,7 @@ pub mod graph {
                     } => {
                         state.x_scale += x / 1000.0;
                         state.y_scale -= y / 1000.0;
+                        state.x_shift *= 10_f32.powf(x / 1000.0);
                         event_status = event::Status::Captured;
                     }
                     mouse::Event::ButtonPressed(mouse::Button::Left) => {
