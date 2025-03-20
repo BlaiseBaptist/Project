@@ -31,8 +31,8 @@ enum Message {
 struct App {
     panes: pane_grid::State<Pane>,
     path: String,
-    ports: Vec<SerialPortInfo>,
-    port: String,
+    avlb_ports: Vec<SerialPortInfo>,
+    port: usize,
     open_delay: usize,
 }
 impl Default for App {
@@ -44,16 +44,16 @@ impl App {
     fn new() -> Self {
         let config = Configuration::Pane(Pane::Controls);
         let g_state = pane_grid::State::with_configuration(config);
-        let mut ports = serialport::available_ports().unwrap();
-        ports.push(SerialPortInfo {
+        let mut avlb_ports = serialport::available_ports().unwrap();
+        avlb_ports.push(SerialPortInfo {
             port_name: "dummy".to_string(),
             port_type: serialport::SerialPortType::Unknown,
         });
         App {
             panes: g_state,
             path: "graph1.csv".to_string(),
-            ports,
-            port: "dummy".to_string(),
+            avlb_ports,
+            port: 0,
             open_delay: 0,
         }
     }
@@ -67,7 +67,7 @@ impl App {
                 }
                 Pane::Controls => {
                     title_text = "App Controls".to_string();
-                    controls_pane(&self.ports, self.port.clone(), self.path.clone(), pane)
+                    controls_pane(&self.avlb_ports, self.port, self.path.clone(), pane)
                 }
             })
             .title_bar(
@@ -101,20 +101,25 @@ impl App {
                 );
             }
             Message::PathChanged(path) => self.path = path,
-            Message::ChangePort(port) => {
-                let mut ports = serialport::available_ports().unwrap();
-                ports.push(SerialPortInfo {
+            Message::ChangePort(port_name) => {
+                let mut avlb_ports = serialport::available_ports().unwrap();
+                avlb_ports.push(SerialPortInfo {
                     port_name: "dummy".to_string(),
                     port_type: serialport::SerialPortType::Unknown,
                 });
-                self.ports = ports;
-                self.port = port;
+                self.port = avlb_ports
+                    .iter()
+                    .position(|n| n.port_name == port_name)
+                    .unwrap_or(0);
+                self.avlb_ports = avlb_ports;
             }
             Message::Split(pane) => {
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
                     pane,
-                    Pane::Graph(Graph::new(port::port::from_string(&self.port))),
+                    Pane::Graph(Graph::new(port::port::from_string(
+                        &(self.avlb_ports[self.port].port_name),
+                    ))),
                 );
                 self.open_delay = 10;
             }
@@ -149,8 +154,8 @@ impl App {
     }
 }
 fn controls_pane(
-    ports: &[SerialPortInfo],
-    current_port: String,
+    avlb_ports: &[SerialPortInfo],
+    current_port: usize,
     path: String,
     pane: pane_grid::Pane,
 ) -> Container<Message> {
@@ -158,11 +163,11 @@ fn controls_pane(
         column![
             row![
                 pick_list(
-                    ports
+                    avlb_ports
                         .iter()
                         .map(|port| port.port_name.clone())
-                        .collect::<Vec<_>>(),
-                    Some(current_port),
+                        .collect::<Vec<String>>(),
+                    Some(avlb_ports[current_port].port_name.clone()),
                     Message::ChangePort
                 ),
                 button("New Graph").on_press(Message::Split(pane))
