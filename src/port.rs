@@ -3,49 +3,31 @@ pub mod port {
     use std::fmt::Debug;
     use std::sync::mpsc;
     use std::time::Duration;
-    type Item = f32;
+    type Item = [u8; 4];
     #[allow(dead_code)]
     pub trait Port: Debug + Iterator<Item = Item> {
-        fn endian_value(&self) -> String {
-            self.converter()
-                .map(|c| c.name())
-                .unwrap_or("None".to_string())
-        }
-        fn swap_endianness(&mut self) {
-            self.converter().map(|c| c.swap());
-        }
-        fn converter(&self) -> Option<converter> {
-            None
-        }
         fn name(&self) -> String {
             "dummy".to_string()
         }
     }
     #[derive(Debug)]
     pub struct DummyPort {
-        value_count: u32,
-        dampen: f32,
+        value_count: f32,
     }
     impl Iterator for DummyPort {
         type Item = Item;
-        #[allow(unused_mut)]
         fn next(&mut self) -> Option<Self::Item> {
-            self.value_count += 1;
-            let value = (10000.0 / self.value_count as f32).sin() * self.dampen;
-            self.dampen *= 0.99;
-            if self.dampen < self.value_count as f32 {
-                self.dampen *= 1.1;
+            if self.value_count > 100.0 {
+                self.value_count = 1.0
             }
-            Some(value)
+            self.value_count *= 1.0001;
+            Some(self.value_count.to_be_bytes())
         }
     }
     impl Port for DummyPort {}
     impl std::default::Default for DummyPort {
         fn default() -> Self {
-            DummyPort {
-                value_count: 0,
-                dampen: 1.0,
-            }
+            DummyPort { value_count: 1_f32 }
         }
     }
     #[derive(Debug)]
@@ -65,22 +47,15 @@ pub mod port {
         }
     }
     #[derive(Debug)]
-    pub struct PhysicalPort {
-        pub port: Box<dyn serialport::SerialPort>,
+    struct PhysicalPort {
+        port: Box<dyn serialport::SerialPort>,
         name: String,
         values: Vec<(mpsc::Sender<Item>, Option<mpsc::Receiver<Item>>)>,
         internal_ports: usize,
-        current_port_write: usize,
         current_port_read: usize,
-        converter: converter,
     }
     impl PhysicalPort {
-        fn new(
-            port: Box<dyn serialport::SerialPort>,
-            internal_ports: usize,
-            converter: Option<converter>,
-            name: String,
-        ) -> Self {
+        fn new(port: Box<dyn serialport::SerialPort>, internal_ports: usize, name: String) -> Self {
             let mut values = Vec::with_capacity(internal_ports);
             for _ in 0..internal_ports {
                 let (sender, receiver) = mpsc::channel::<Item>();
@@ -90,45 +65,40 @@ pub mod port {
                 port,
                 name,
                 values,
-                internal_ports: internal_ports,
-                current_port_write: 0,
+                internal_ports,
                 current_port_read: 0,
-                converter: converter.unwrap_or(converter::be_f32),
             }
         }
         fn split(&mut self) -> Option<Box<dyn Port>> {
             self.current_port_read += 1;
             Some(Box::new(MultiPort {
                 port: self.values.get_mut(self.current_port_read - 1)?.1.take()?,
-                name: format!("{} split {}", self.name(), self.current_port_read),
+                name: format!("{} split {}", self.name.clone(), self.current_port_read),
             }))
         }
-    }
-    impl Iterator for PhysicalPort {
-        type Item = Item;
-        fn next(&mut self) -> Option<Self::Item> {
-            let mut serial_buf = [0b0_u8; 4];
-            match self.port.bytes_to_read().ok()? {
-                4.. => {
-                    self.port.read_exact(&mut serial_buf).ok()?;
+        fn step_at(mut self, time: Duration) {
+            std::thread::spawn(move || loop {
+                if !self.next() {
+                    return;
                 }
-                _ => {
-                    return None;
-                }
-            };
-            let value = self.converter.convert(serial_buf);
-            let _ = self.values[self.current_port_write].0.send(value);
-            if self.current_port_write < self.internal_ports {
-                self.current_port_write += 1;
-            } else {
-                self.current_port_write = 0;
-            }
-            Some(value)
+                std::thread::sleep(time);
+            });
         }
-    }
-    impl Port for PhysicalPort {
-        fn name(&self) -> String {
-            self.name.clone()
+        fn next(&mut self) -> bool {
+            println!("getting value");
+            let mut serial_buf = vec![[0b0_u8; 4]; self.internal_ports];
+            match self.port.bytes_to_read() {
+                Ok(v) if v as usize >= self.internal_ports * 4 => {
+                    for x in 0..serial_buf.len() {
+                        let _ = self.port.read_exact(&mut serial_buf[x]);
+                        if self.values[x].0.send(serial_buf[x]).is_err() {
+                            return false;
+                        }
+                    }
+                    true
+                }
+                _ => true,
+            }
         }
     }
     pub fn from_string(s: &str, internal_ports: usize) -> Vec<Box<dyn Port>> {
@@ -141,59 +111,17 @@ pub mod port {
         {
             Ok(v) => {
                 println!("Success opening port. Splitting {} times", internal_ports);
-                let mut main_port = PhysicalPort::new(v, internal_ports, None, s.to_string());
-                (0..internal_ports)
+                let mut main_port = PhysicalPort::new(v, internal_ports, s.to_string());
+                let return_val = (0..internal_ports)
                     .map(|_| main_port.split().unwrap_or(Box::new(DummyPort::default())))
-                    .collect()
+                    .collect();
+                main_port.step_at(Duration::from_secs(1));
+                return_val
             }
             Err(e) => {
                 println!("Error Opening {}: {} ( {:?} )", s, e.description, e.kind);
                 vec![Box::new(DummyPort::default())]
             }
-        }
-    }
-    #[allow(non_camel_case_types)]
-    #[derive(Debug, PartialEq)]
-    pub enum converter {
-        be_f32,
-        le_f32,
-        be_u32,
-        le_u32,
-        u8_to_string,
-    }
-    impl converter {
-        fn convert(&self, data: [u8; 4]) -> Item {
-            match self {
-                converter::be_f32 => f32::from_be_bytes(data),
-                converter::le_f32 => f32::from_le_bytes(data),
-                converter::be_u32 => u32::from_be_bytes(data) as f32,
-                converter::le_u32 => u32::from_le_bytes(data) as f32,
-                converter::u8_to_string => data
-                    .into_iter()
-                    .map(|b| char::from(b))
-                    .collect::<String>()
-                    .parse::<f32>()
-                    .unwrap_or(0.0),
-            }
-        }
-        fn swap(&self) -> Self {
-            match self {
-                converter::be_f32 => converter::le_f32,
-                converter::le_f32 => converter::be_u32,
-                converter::be_u32 => converter::le_u32,
-                converter::le_u32 => converter::u8_to_string,
-                converter::u8_to_string => converter::be_f32,
-            }
-        }
-        fn name(&self) -> String {
-            match self {
-                converter::be_f32 => "be_f32",
-                converter::le_f32 => "le_f32",
-                converter::be_u32 => "be_u32",
-                converter::le_u32 => "le_u32",
-                converter::u8_to_string => "u8_to_string",
-            }
-            .to_string()
         }
     }
 }

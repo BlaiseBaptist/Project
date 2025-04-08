@@ -141,18 +141,34 @@ impl App {
                 self.open_ports.append(&mut port::port::from_string(
                     self.avlb_ports[port_index].port_name.as_str(),
                     number_of_ports,
-                ))
+                ));
+                if self.avlb_port >= self.avlb_ports.len() {
+                    self.avlb_port = 0
+                }
             }
             Message::ClosePort(port_index) => {
+                if self.open_port == 0 {
+                    return;
+                }
                 self.open_ports.remove(port_index);
+                if self.open_port >= self.open_ports.len() {
+                    self.open_port = 0
+                }
             }
             Message::Split(pane) => {
+                if self.open_port == 0 {
+                    self.open_ports
+                        .append(&mut port::port::from_string("dummy", 1))
+                }
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
                     pane,
                     Pane::Graph(Graph::new(self.open_ports.remove(self.open_port))),
                 );
                 self.open_delay = 10;
+                if self.open_port >= self.open_ports.len() {
+                    self.open_port = 0
+                }
             }
             Message::Close(pane) => {
                 self.panes.close(pane);
@@ -170,7 +186,7 @@ impl App {
                         .map(|(_, t)| {
                             if let Pane::Graph(g) = t {
                                 if let Some(v) = g.port.next() {
-                                    g.values.push(v)
+                                    g.push(v)
                                 }
                             }
                         })
@@ -242,7 +258,7 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
             button("Close Pane").on_press(Message::Close(pane)),
             button(text(format!(
                 "Swap Endianness (currently {})",
-                graph.port.endian_value()
+                graph.converter.name()
             )))
             .on_press(Message::SwapEndianness(pane))
         ]

@@ -10,16 +10,21 @@ pub mod graph {
     pub struct Graph {
         pub values: Vec<f32>,
         pub port: Box<dyn port::port::Port>,
+        pub converter: converter,
     }
     impl Graph {
         pub fn new(port: Box<dyn port::port::Port>) -> Graph {
             Graph {
                 values: vec![],
                 port,
+                converter: converter::be_f32,
             }
         }
         pub fn swap_endianness(&mut self) {
-            self.port.swap_endianness()
+            self.converter.swap();
+        }
+        pub fn push(&mut self, v: [u8; 4]) {
+            self.values.push(self.converter.convert(v))
         }
     }
     impl<Message> canvas::Program<Message> for Graph {
@@ -189,6 +194,50 @@ pub mod graph {
                 y_shift: 0.0,
                 last_mouse_click: None,
             }
+        }
+    }
+    #[allow(non_camel_case_types)]
+    #[derive(Debug, PartialEq)]
+    pub enum converter {
+        be_f32,
+        le_f32,
+        be_u32,
+        le_u32,
+        u8_to_string,
+    }
+    impl converter {
+        fn convert(&self, data: [u8; 4]) -> f32 {
+            match self {
+                converter::be_f32 => f32::from_be_bytes(data),
+                converter::le_f32 => f32::from_le_bytes(data),
+                converter::be_u32 => u32::from_be_bytes(data) as f32,
+                converter::le_u32 => u32::from_le_bytes(data) as f32,
+                converter::u8_to_string => data
+                    .into_iter()
+                    .map(|b| char::from(b))
+                    .collect::<String>()
+                    .parse::<f32>()
+                    .unwrap_or(0.0),
+            }
+        }
+        fn swap(&self) -> Self {
+            match self {
+                converter::be_f32 => converter::le_f32,
+                converter::le_f32 => converter::be_u32,
+                converter::be_u32 => converter::le_u32,
+                converter::le_u32 => converter::u8_to_string,
+                converter::u8_to_string => converter::be_f32,
+            }
+        }
+        pub fn name(&self) -> String {
+            match self {
+                converter::be_f32 => "be_f32",
+                converter::le_f32 => "le_f32",
+                converter::be_u32 => "be_u32",
+                converter::le_u32 => "le_u32",
+                converter::u8_to_string => "u8_to_string",
+            }
+            .to_string()
         }
     }
 }
