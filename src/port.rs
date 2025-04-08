@@ -14,9 +14,6 @@ pub mod port {
         fn swap_endianness(&mut self) {
             self.converter().map(|c| c.swap());
         }
-        fn split(&mut self) -> Option<Box<dyn Port>> {
-            Some(Box::new(DummyPort::default()))
-        }
         fn converter(&self) -> Option<converter> {
             None
         }
@@ -54,6 +51,7 @@ pub mod port {
     #[derive(Debug)]
     struct MultiPort {
         port: mpsc::Receiver<Item>,
+        name: String,
     }
     impl Iterator for MultiPort {
         type Item = Item;
@@ -63,7 +61,7 @@ pub mod port {
     }
     impl Port for MultiPort {
         fn name(&self) -> String {
-            "MultiPort".to_string()
+            self.name.clone()
         }
     }
     #[derive(Debug)]
@@ -98,6 +96,13 @@ pub mod port {
                 converter: converter.unwrap_or(converter::be_f32),
             }
         }
+        fn split(&mut self) -> Option<Box<dyn Port>> {
+            self.current_port_read += 1;
+            Some(Box::new(MultiPort {
+                port: self.values.get_mut(self.current_port_read - 1)?.1.take()?,
+                name: format!("{} split {}", self.name(), self.current_port_read),
+            }))
+        }
     }
     impl Iterator for PhysicalPort {
         type Item = Item;
@@ -122,30 +127,28 @@ pub mod port {
         }
     }
     impl Port for PhysicalPort {
-        fn split(&mut self) -> Option<Box<dyn Port>> {
-            Some(Box::new(MultiPort {
-                port: self.values[self.current_port_read].1.take()?,
-            }))
-        }
         fn name(&self) -> String {
             self.name.clone()
         }
     }
-    pub fn from_string(s: &str, internal_ports: usize) -> Box<dyn Port<Item = Item>> {
+    pub fn from_string(s: &str, internal_ports: usize) -> Vec<Box<dyn Port>> {
         if s == "dummy" {
-            return Box::new(DummyPort::default());
+            return vec![Box::new(DummyPort::default())];
         };
         match serialport::new(s, 9600)
             .timeout(Duration::from_millis(100))
             .open()
         {
             Ok(v) => {
-                println!("Success Opening Port");
-                Box::new(PhysicalPort::new(v, internal_ports, None, s.to_string()))
+                println!("Success opening port. Splitting {} times", internal_ports);
+                let mut main_port = PhysicalPort::new(v, internal_ports, None, s.to_string());
+                (0..internal_ports)
+                    .map(|_| main_port.split().unwrap_or(Box::new(DummyPort::default())))
+                    .collect()
             }
             Err(e) => {
                 println!("Error Opening {}: {} ( {:?} )", s, e.description, e.kind);
-                Box::new(DummyPort::default())
+                vec![Box::new(DummyPort::default())]
             }
         }
     }

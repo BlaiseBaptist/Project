@@ -2,7 +2,7 @@ use iced::{
     time,
     widget::{
         button, canvas, column, container, pane_grid, pane_grid::Configuration, pick_list, row,
-        text, text_input, Container,
+        slider, text, text_input, Container,
     },
     Fill, Subscription,
 };
@@ -25,10 +25,12 @@ enum Message {
     ChangeAvlbPort(String),
     ChangeOpenPort(String),
     OpenPort(usize, usize),
+    ClosePort(usize),
     Split(pane_grid::Pane),
     Close(pane_grid::Pane),
     SwapEndianness(pane_grid::Pane),
     Update,
+    ChangeNumberOfPorts(usize),
 }
 struct App {
     panes: pane_grid::State<Pane>,
@@ -37,6 +39,7 @@ struct App {
     open_ports: Vec<Box<dyn port::port::Port>>,
     avlb_port: usize,
     open_port: usize,
+    internal_ports: usize,
     open_delay: usize,
 }
 impl Default for App {
@@ -49,7 +52,7 @@ impl App {
         let config = Configuration::Pane(Pane::Controls);
         let g_state = pane_grid::State::with_configuration(config);
         let avlb_ports = serialport::available_ports().unwrap();
-        let open_ports = vec![port::port::from_string("dummy", 1)];
+        let open_ports = port::port::from_string("dummy", 1);
         App {
             panes: g_state,
             path: "graph1.csv".to_string(),
@@ -57,6 +60,7 @@ impl App {
             open_ports,
             avlb_port: 0,
             open_port: 0,
+            internal_ports: 1,
             open_delay: 0,
         }
     }
@@ -81,6 +85,7 @@ impl App {
                             .collect::<Vec<String>>(),
                         self.avlb_port,
                         self.open_port,
+                        self.internal_ports,
                         self.path.clone(),
                         pane,
                     )
@@ -133,19 +138,19 @@ impl App {
                     .unwrap_or(0);
             }
             Message::OpenPort(port_index, number_of_ports) => {
-                self.open_ports.push(port::port::from_string(
-                    self.avlb_ports.remove(port_index).port_name.as_str(),
+                self.open_ports.append(&mut port::port::from_string(
+                    self.avlb_ports[port_index].port_name.as_str(),
                     number_of_ports,
                 ))
+            }
+            Message::ClosePort(port_index) => {
+                self.open_ports.remove(port_index);
             }
             Message::Split(pane) => {
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
                     pane,
-                    Pane::Graph(Graph::new(port::port::from_string(
-                        &(self.avlb_ports[self.avlb_port].port_name),
-                        1,
-                    ))),
+                    Pane::Graph(Graph::new(self.open_ports.remove(self.open_port))),
                 );
                 self.open_delay = 10;
             }
@@ -156,6 +161,7 @@ impl App {
                 Some(Pane::Graph(graph)) => graph.swap_endianness(),
                 _ => unimplemented!(),
             },
+            Message::ChangeNumberOfPorts(internal_ports) => self.internal_ports = internal_ports,
             Message::Update => {
                 if self.open_delay == 0 {
                     let _: Vec<_> = self
@@ -184,6 +190,7 @@ fn controls_pane<'a>(
     open_ports: Vec<String>,
     current_avlb_port: usize,
     current_open_port: usize,
+    internal_ports: usize,
     path: String,
     pane: pane_grid::Pane,
 ) -> Container<'a, Message> {
@@ -193,12 +200,17 @@ fn controls_pane<'a>(
         column![
             row![
                 pick_list(avlb_ports, Some(avlb_port), Message::ChangeAvlbPort),
-                button("Open Port").on_press(Message::OpenPort(current_avlb_port, 1))
+                button(text(format!("Open {} Ports", internal_ports)))
+                    .on_press(Message::OpenPort(current_avlb_port, internal_ports)),
+                slider(1_f32..=32_f32, internal_ports as f32, |x| {
+                    Message::ChangeNumberOfPorts(x as usize)
+                })
             ]
             .spacing(10),
             row![
                 pick_list(open_ports, Some(open_port), Message::ChangeOpenPort),
-                button("New Graph").on_press(Message::Split(pane))
+                button("New Graph").on_press(Message::Split(pane)),
+                button("Close Port").on_press(Message::ClosePort(current_open_port))
             ]
             .spacing(10),
             button(
