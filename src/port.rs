@@ -85,7 +85,6 @@ pub mod port {
             });
         }
         fn next(&mut self) -> bool {
-            println!("getting value");
             let mut serial_buf = vec![[0b0_u8; 4]; self.internal_ports];
             match self.port.bytes_to_read() {
                 Ok(v) if v as usize >= self.internal_ports * 4 => {

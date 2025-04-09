@@ -21,7 +21,7 @@ pub mod graph {
             }
         }
         pub fn swap_endianness(&mut self) {
-            self.converter.swap();
+            self.converter = self.converter.swap();
         }
         pub fn push(&mut self, v: [u8; 4]) {
             self.values.push(self.converter.convert(v))
