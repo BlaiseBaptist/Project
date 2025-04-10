@@ -69,7 +69,7 @@ impl App {
             let title_text: String;
             pane_grid::Content::<Message>::new(match state {
                 Pane::Graph(g) => {
-                    title_text = "Graph".to_string();
+                    title_text = format!("graph: {}", g.port.name());
                     graph_pane(g, pane)
                 }
                 Pane::Controls => {
@@ -198,7 +198,7 @@ impl App {
         }
     }
     fn subscription(&self) -> Subscription<Message> {
-        time::every(Duration::from_nanos(1)).map(|_| Message::Update)
+        time::every(Duration::from_micros(100)).map(|_| Message::Update)
     }
 }
 fn controls_pane<'a>(

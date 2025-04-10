@@ -79,6 +79,7 @@ pub mod port {
         fn step_at(mut self, time: Duration) {
             std::thread::spawn(move || loop {
                 if !self.next() {
+                    println!("port is closed");
                     return;
                 }
                 std::thread::sleep(time);
@@ -114,7 +115,7 @@ pub mod port {
                 let return_val = (0..internal_ports)
                     .map(|_| main_port.split().unwrap_or(Box::new(DummyPort::default())))
                     .collect();
-                main_port.step_at(Duration::from_secs(1));
+                main_port.step_at(Duration::from_millis(100));
                 return_val
             }
             Err(e) => {
@@ -123,4 +124,34 @@ pub mod port {
             }
         }
     }
+    /*pub struct RealDummyPort {
+        value: f32,
+    }
+    impl serialport::SerialPort for RealDummyPort {
+        fn name(&self) -> Option<String>{}
+        fn baud_rate(&self) -> Result<u32>{}
+        fn data_bits(&self) -> Result<DataBits>{}
+        fn flow_control(&self) -> Result<FlowControl>{}
+        fn parity(&self) -> Result<Parity>{}
+        fn stop_bits(&self) -> Result<StopBits>{}
+        fn timeout(&self) -> Duration{}
+        fn set_baud_rate(&mut self, baud_rate: u32) -> Result<()>{}
+        fn set_data_bits(&mut self, data_bits: DataBits) -> Result<()>{}
+        fn set_flow_control(&mut self, flow_control: FlowControl) -> Result<()>{}
+        fn set_parity(&mut self, parity: Parity) -> Result<()>{}
+        fn set_stop_bits(&mut self, stop_bits: StopBits) -> Result<()>{}
+        fn set_timeout(&mut self, timeout: Duration) -> Result<()>{}
+        fn write_request_to_send(&mut self, level: bool) -> Result<()>{}
+        fn write_data_terminal_ready(&mut self, level: bool) -> Result<()>{}
+        fn read_clear_to_send(&mut self) -> Result<bool>{}
+        fn read_data_set_ready(&mut self) -> Result<bool>{}
+        fn read_ring_indicator(&mut self) -> Result<bool>{}
+        fn read_carrier_detect(&mut self) -> Result<bool>{}
+        fn bytes_to_read(&self) -> Result<u32>{}
+        fn bytes_to_write(&self) -> Result<u32>{}
+        fn clear(&self, buffer_to_clear: ClearBuffer) -> Result<()>{}
+        fn try_clone(&self) -> Result<Box<dyn SerialPort>>{}
+        fn set_break(&self) -> Result<()>{}
+        fn clear_break(&self) -> Result<()>;{}
+    }*/
 }

@@ -24,7 +24,7 @@ pub mod graph {
             self.converter = self.converter.swap();
         }
         pub fn push(&mut self, v: [u8; 4]) {
-            self.values.push(self.converter.convert(v))
+            self.values.push(self.converter.convert(v));
         }
     }
     impl<Message> canvas::Program<Message> for Graph {
@@ -138,9 +138,11 @@ pub mod graph {
             cursor: mouse::Cursor,
         ) -> (event::Status, Option<Message>) {
             let mut event_status = event::Status::Ignored;
-            if self.values.len() < bounds.size().width as usize {
-                return (event_status, None);
-            }
+            // println!("mouse event");
+            // if self.values.len() < bounds.size().width as usize {
+            //     println!("no enought values");
+            //     return (event_status, None);
+            // }
             if !cursor.is_over(bounds) {
                 return (event_status, None);
             }
