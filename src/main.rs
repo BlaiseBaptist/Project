@@ -114,7 +114,7 @@ impl App {
                     self.panes
                         .iter()
                         .filter_map(|(_p, t)| match t {
-                            Pane::Graph(g) => Some(&g.values),
+                            Pane::Graph(g) => Some(g.get_values()),
                             _ => None,
                         })
                         .collect(),
@@ -267,7 +267,7 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     .padding(10)
     .style(style::style::graph)
 }
-fn write_file(data: Vec<&Vec<f32>>, path: &String) -> std::io::Result<()> {
+fn write_file(data: Vec<Vec<f32>>, path: &String) -> std::io::Result<()> {
     let mut f = fs::File::create(path)?;
     let max_size = data
         .get(data.len() - 1)

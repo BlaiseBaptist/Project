@@ -10,26 +10,26 @@ pub mod port {
             "dummy".to_string()
         }
     }
-    #[derive(Debug)]
-    pub struct DummyPort {
-        value_count: f32,
-    }
-    impl Iterator for DummyPort {
-        type Item = Item;
-        fn next(&mut self) -> Option<Self::Item> {
-            if self.value_count > 100.0 {
-                self.value_count = 1.0
-            }
-            self.value_count *= 1.0001;
-            Some(self.value_count.to_be_bytes())
-        }
-    }
-    impl Port for DummyPort {}
-    impl std::default::Default for DummyPort {
-        fn default() -> Self {
-            DummyPort { value_count: 1_f32 }
-        }
-    }
+    // #[derive(Debug)]
+    // pub struct DummyPort {
+    //     value_count: f32,
+    // }
+    // impl Iterator for DummyPort {
+    //     type Item = Item;
+    //     fn next(&mut self) -> Option<Self::Item> {
+    //         if self.value_count > 100.0 {
+    //             self.value_count = 1.0
+    //         }
+    //         self.value_count *= 1.0001;
+    //         Some(self.value_count.to_be_bytes())
+    //     }
+    // }
+    // impl Port for DummyPort {}
+    // impl std::default::Default for DummyPort {
+    //     fn default() -> Self {
+    //         DummyPort { value_count: 1_f32 }
+    //     }
+    // }
     #[derive(Debug)]
     struct MultiPort {
         port: mpsc::Receiver<Item>,
@@ -102,56 +102,145 @@ pub mod port {
         }
     }
     pub fn from_string(s: &str, internal_ports: usize) -> Vec<Box<dyn Port>> {
-        if s == "dummy" {
-            return vec![Box::new(DummyPort::default())];
-        };
-        match serialport::new(s, 9600)
-            .timeout(Duration::from_millis(100))
-            .open()
-        {
-            Ok(v) => {
-                println!("Success opening port. Splitting {} times", internal_ports);
-                let mut main_port = PhysicalPort::new(v, internal_ports, s.to_string());
-                let return_val = (0..internal_ports)
-                    .map(|_| main_port.split().unwrap_or(Box::new(DummyPort::default())))
-                    .collect();
-                main_port.step_at(Duration::from_millis(100));
-                return_val
-            }
-            Err(e) => {
-                println!("Error Opening {}: {} ( {:?} )", s, e.description, e.kind);
-                vec![Box::new(DummyPort::default())]
+        let mut main_port = PhysicalPort::new(
+            serialport::new(s, 9600)
+                .open()
+                .unwrap_or(Box::new(RealDummyPort::new())),
+            internal_ports,
+            s.to_string(),
+        );
+        let return_val = (0..internal_ports)
+            .map(|_| main_port.split().unwrap())
+            .collect();
+        main_port.step_at(Duration::from_millis(10));
+        return return_val;
+    }
+    pub struct RealDummyPort {
+        value: Item,
+        value_count: usize,
+    }
+    impl RealDummyPort {
+        fn new() -> Self {
+            println!("creating dummy port");
+            RealDummyPort {
+                value: [0; 4],
+                value_count: 0,
             }
         }
     }
-    /*pub struct RealDummyPort {
-        value: f32,
+    struct _AssertSend<T: Send>(T);
+    impl _AssertSend<RealDummyPort> {}
+    impl std::io::Read for RealDummyPort {
+        fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+            self.value_count += 1;
+            self.value = (self.value_count as f32 / 100.0).sin().to_ne_bytes();
+            for x in 0..4 {
+                buf[x] = self.value[x];
+            }
+            Ok(4)
+        }
+    }
+    impl std::io::Write for RealDummyPort {
+        fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+            for x in 0..4 {
+                self.value[x] = buf[x]
+            }
+            Ok(4)
+        }
+        fn flush(&mut self) -> Result<(), std::io::Error> {
+            todo!()
+        }
     }
     impl serialport::SerialPort for RealDummyPort {
-        fn name(&self) -> Option<String>{}
-        fn baud_rate(&self) -> Result<u32>{}
-        fn data_bits(&self) -> Result<DataBits>{}
-        fn flow_control(&self) -> Result<FlowControl>{}
-        fn parity(&self) -> Result<Parity>{}
-        fn stop_bits(&self) -> Result<StopBits>{}
-        fn timeout(&self) -> Duration{}
-        fn set_baud_rate(&mut self, baud_rate: u32) -> Result<()>{}
-        fn set_data_bits(&mut self, data_bits: DataBits) -> Result<()>{}
-        fn set_flow_control(&mut self, flow_control: FlowControl) -> Result<()>{}
-        fn set_parity(&mut self, parity: Parity) -> Result<()>{}
-        fn set_stop_bits(&mut self, stop_bits: StopBits) -> Result<()>{}
-        fn set_timeout(&mut self, timeout: Duration) -> Result<()>{}
-        fn write_request_to_send(&mut self, level: bool) -> Result<()>{}
-        fn write_data_terminal_ready(&mut self, level: bool) -> Result<()>{}
-        fn read_clear_to_send(&mut self) -> Result<bool>{}
-        fn read_data_set_ready(&mut self) -> Result<bool>{}
-        fn read_ring_indicator(&mut self) -> Result<bool>{}
-        fn read_carrier_detect(&mut self) -> Result<bool>{}
-        fn bytes_to_read(&self) -> Result<u32>{}
-        fn bytes_to_write(&self) -> Result<u32>{}
-        fn clear(&self, buffer_to_clear: ClearBuffer) -> Result<()>{}
-        fn try_clone(&self) -> Result<Box<dyn SerialPort>>{}
-        fn set_break(&self) -> Result<()>{}
-        fn clear_break(&self) -> Result<()>;{}
-    }*/
+        fn name(&self) -> Option<String> {
+            Some("dummy".to_string())
+        }
+        fn baud_rate(&self) -> Result<u32, serialport::Error> {
+            Ok(0)
+            //inf
+        }
+        fn data_bits(&self) -> Result<serialport::DataBits, serialport::Error> {
+            Ok(serialport::DataBits::Eight)
+        }
+        fn flow_control(&self) -> Result<serialport::FlowControl, serialport::Error> {
+            Ok(serialport::FlowControl::None)
+        }
+        fn parity(&self) -> Result<serialport::Parity, serialport::Error> {
+            Ok(serialport::Parity::None)
+        }
+        fn stop_bits(&self) -> Result<serialport::StopBits, serialport::Error> {
+            todo!()
+        }
+        fn timeout(&self) -> Duration {
+            Duration::MAX
+        }
+        fn set_baud_rate(&mut self, _baud_rate: u32) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn set_data_bits(
+            &mut self,
+            _data_bits: serialport::DataBits,
+        ) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn set_flow_control(
+            &mut self,
+            _flow_control: serialport::FlowControl,
+        ) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn set_parity(&mut self, _parity: serialport::Parity) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn set_stop_bits(
+            &mut self,
+            _stop_bits: serialport::StopBits,
+        ) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn set_timeout(&mut self, _timeout: Duration) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn write_request_to_send(&mut self, _level: bool) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn write_data_terminal_ready(&mut self, _level: bool) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn read_clear_to_send(&mut self) -> Result<bool, serialport::Error> {
+            Ok(true)
+        }
+        fn read_data_set_ready(&mut self) -> Result<bool, serialport::Error> {
+            Ok(true)
+        }
+        fn read_ring_indicator(&mut self) -> Result<bool, serialport::Error> {
+            Ok(true)
+        }
+        fn read_carrier_detect(&mut self) -> Result<bool, serialport::Error> {
+            Ok(true)
+        }
+        fn bytes_to_read(&self) -> Result<u32, serialport::Error> {
+            Ok(1024)
+            //inf
+        }
+        fn bytes_to_write(&self) -> Result<u32, serialport::Error> {
+            Ok(4)
+            //write only try to write the last value
+        }
+        fn clear(
+            &self,
+            _buffer_to_clear: serialport::ClearBuffer,
+        ) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn try_clone(&self) -> Result<Box<dyn serialport::SerialPort>, serialport::Error> {
+            Ok(Box::new(RealDummyPort::new()))
+        }
+        fn set_break(&self) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+        fn clear_break(&self) -> Result<(), serialport::Error> {
+            Ok(())
+        }
+    }
 }

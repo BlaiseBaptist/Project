@@ -8,7 +8,7 @@ pub mod graph {
     };
     #[derive(Debug)]
     pub struct Graph {
-        pub values: Vec<f32>,
+        pub values: Vec<[u8; 4]>,
         pub port: Box<dyn port::port::Port>,
         pub converter: converter,
     }
@@ -24,7 +24,13 @@ pub mod graph {
             self.converter = self.converter.swap();
         }
         pub fn push(&mut self, v: [u8; 4]) {
-            self.values.push(self.converter.convert(v));
+            self.values.push(v);
+        }
+        pub fn get_values(&self) -> Vec<f32> {
+            self.values
+                .iter()
+                .map(|x| self.converter.convert(*x))
+                .collect()
         }
     }
     impl<Message> canvas::Program<Message> for Graph {
@@ -53,6 +59,7 @@ pub mod graph {
             } else {
                 1
             };
+            println!("start: {}, end: {}, split: {}", start, end, step_size);
             let height = -scale.m32 / scale.m22;
             let bottom = (bounds.size().height - 20.0 - scale.m32) / scale.m22;
             let mut lines = canvas::path::Builder::new();
@@ -65,10 +72,10 @@ pub mod graph {
                 .for_each(|(i, value)| {
                     lines.line_to(Point::new(
                         i as f32,
-                        match value {
-                            v if v > &height => height,
-                            v if v < &bottom => bottom,
-                            _ => *value,
+                        match self.converter.convert(*value) {
+                            v if v > height => height,
+                            v if v < bottom => bottom,
+                            v => v,
                         },
                     ))
                 });
@@ -81,6 +88,16 @@ pub mod graph {
                 line_join: canvas::LineJoin::Miter,
                 width: 1.0,
                 style: canvas::Style::Solid(theme.palette().text),
+            };
+            let background_stroke: canvas::Stroke = canvas::Stroke {
+                line_cap: canvas::LineCap::Butt,
+                line_dash: canvas::LineDash {
+                    offset: 0,
+                    segments: &[5.0, 3.0],
+                },
+                line_join: canvas::LineJoin::Miter,
+                width: 0.5,
+                style: canvas::Style::Solid(theme.palette().background),
             };
             frame.stroke(&lines.build().transform(&scale), stroke);
             let text_size = 16.0;
@@ -106,7 +123,7 @@ pub mod graph {
                     Point::new(bounds.size().width, line_sep),
                     Point::new(0.0, line_sep),
                 );
-                frame.stroke(&graph_line, stroke.with_color(theme.palette().text));
+                frame.stroke(&graph_line, background_stroke);
             }
             for x in 1..x_lines + 1 {
                 let line_sep = bounds.size().width - x_sep * x as f32;
@@ -126,7 +143,7 @@ pub mod graph {
                     Point::new(line_sep, bounds.size().height - 20.0),
                     Point::new(line_sep, 0.0),
                 );
-                frame.stroke(&graph_line, stroke.with_color(theme.palette().text));
+                frame.stroke(&graph_line, background_stroke);
             }
             vec![frame.into_geometry()]
         }
@@ -138,11 +155,6 @@ pub mod graph {
             cursor: mouse::Cursor,
         ) -> (event::Status, Option<Message>) {
             let mut event_status = event::Status::Ignored;
-            // println!("mouse event");
-            // if self.values.len() < bounds.size().width as usize {
-            //     println!("no enought values");
-            //     return (event_status, None);
-            // }
             if !cursor.is_over(bounds) {
                 return (event_status, None);
             }
