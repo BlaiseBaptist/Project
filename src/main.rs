@@ -6,7 +6,6 @@ use iced::{
     },
     Fill, Subscription,
 };
-use serialport::SerialPortInfo;
 use std::{fs, io::Write, time::Duration};
 mod graph;
 mod port;
@@ -35,7 +34,7 @@ enum Message {
 struct App {
     panes: pane_grid::State<Pane>,
     path: String,
-    avlb_ports: Vec<SerialPortInfo>,
+    avlb_ports: Vec<String>,
     open_ports: Vec<Box<dyn port::port::Port>>,
     avlb_port: usize,
     open_port: usize,
@@ -51,8 +50,14 @@ impl App {
     fn new() -> Self {
         let config = Configuration::Pane(Pane::Controls);
         let g_state = pane_grid::State::with_configuration(config);
-        let avlb_ports = serialport::available_ports().unwrap();
+        let avlb_ports = serialport::available_ports()
+            .unwrap()
+            .into_iter()
+            .map(|port| port.port_name)
+            .chain(vec!["string".to_string()].into_iter())
+            .collect();
         let open_ports = port::port::from_string("dummy", 1);
+        // let open_ports = vec![];
         App {
             panes: g_state,
             path: "graph1.csv".to_string(),
@@ -75,10 +80,7 @@ impl App {
                 Pane::Controls => {
                     title_text = "App Controls".to_string();
                     controls_pane(
-                        self.avlb_ports
-                            .iter()
-                            .map(|port| port.port_name.clone())
-                            .collect::<Vec<String>>(),
+                        self.avlb_ports.clone(),
                         self.open_ports
                             .iter()
                             .map(|port| port.name())
@@ -123,12 +125,17 @@ impl App {
             }
             Message::PathChanged(path) => self.path = path,
             Message::ChangeAvlbPort(port_name) => {
-                let avlb_ports = serialport::available_ports().unwrap();
-                self.avlb_port = avlb_ports
+                self.avlb_ports = serialport::available_ports()
+                    .unwrap()
+                    .into_iter()
+                    .map(|port| port.port_name)
+                    .chain(vec!["dummy".to_string()].into_iter())
+                    .collect();
+                self.avlb_port = self
+                    .avlb_ports
                     .iter()
-                    .position(|n| n.port_name == port_name)
+                    .position(|n| n == &port_name)
                     .unwrap_or(0);
-                self.avlb_ports = avlb_ports;
             }
             Message::ChangeOpenPort(port_name) => {
                 self.open_port = self
@@ -139,7 +146,7 @@ impl App {
             }
             Message::OpenPort(port_index, number_of_ports) => {
                 self.open_ports.append(&mut port::port::from_string(
-                    self.avlb_ports[port_index].port_name.as_str(),
+                    self.avlb_ports[port_index].as_str(),
                     number_of_ports,
                 ));
                 if self.avlb_port >= self.avlb_ports.len() {

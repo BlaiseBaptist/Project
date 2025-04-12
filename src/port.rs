@@ -112,7 +112,7 @@ pub mod port {
         let return_val = (0..internal_ports)
             .map(|_| main_port.split().unwrap())
             .collect();
-        main_port.step_at(Duration::from_millis(10));
+        main_port.step_at(Duration::from_micros(1000));
         return return_val;
     }
     pub struct RealDummyPort {
@@ -133,7 +133,9 @@ pub mod port {
     impl std::io::Read for RealDummyPort {
         fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
             self.value_count += 1;
-            self.value = (self.value_count as f32 / 100.0).sin().to_ne_bytes();
+            self.value = ((self.value_count / 100) as f32).to_be_bytes();
+
+            // self.value = (self.value_count as f32 / 100.0).sin().to_be_bytes();
             for x in 0..4 {
                 buf[x] = self.value[x];
             }

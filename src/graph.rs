@@ -52,23 +52,26 @@ pub mod graph {
                 state.x_shift,
                 bounds.size().height + state.y_shift,
             );
-            let start: usize = (-scale.m31 / scale.m11) as usize;
-            let end: usize = ((bounds.size().width - scale.m31) / scale.m11) as usize + 1;
-            let step_size = if end - start > self.values.len() {
-                (scale.m11 / 2.0) as usize + 1
-            } else {
-                1
+            let start = (-scale.m31 / scale.m11) as usize;
+            let end = ((bounds.size().width - scale.m31) / scale.m11) as usize + 1;
+            let step_size = match bounds.size().width / (scale.m11 * 10000.0) {
+                v if v <= 1.0 => 1.0,
+                v => v,
             };
-            println!("start: {}, end: {}, split: {}", start, end, step_size);
+            let _debug = format!(
+                "start: {}, end: {}, step: {},  scale: {}, shift: {}",
+                start, end, step_size, scale.m11, scale.m31
+            );
+            // println!("{}", _debug);
             let height = -scale.m32 / scale.m22;
             let bottom = (bounds.size().height - 20.0 - scale.m32) / scale.m22;
             let mut lines = canvas::path::Builder::new();
             self.values
                 .iter()
+                .enumerate()
                 .skip(start)
                 .take(end)
-                .enumerate()
-                .step_by(step_size)
+                .step_by(step_size as usize)
                 .for_each(|(i, value)| {
                     lines.line_to(Point::new(
                         i as f32,
@@ -93,7 +96,7 @@ pub mod graph {
                 line_cap: canvas::LineCap::Butt,
                 line_dash: canvas::LineDash {
                     offset: 0,
-                    segments: &[5.0, 3.0],
+                    segments: &[7.0, 3.0],
                 },
                 line_join: canvas::LineJoin::Miter,
                 width: 0.5,
@@ -101,47 +104,49 @@ pub mod graph {
             };
             frame.stroke(&lines.build().transform(&scale), stroke);
             let text_size = 16.0;
-            let y_lines = (bounds.size().height / 100.0) as i32;
-            let y_sep = bounds.size().height / (y_lines as f32 + 1.0);
-            let x_lines = (bounds.size().width / 100.0) as i32;
-            let x_sep = bounds.size().width / (x_lines as f32 + 1.0);
-            for y in 1..y_lines + 1 {
-                let line_sep = bounds.size().height - y_sep * y as f32;
+            let y_lines = 5;
+            let x_lines = 5;
+            for y in -y_lines * 2..y_lines * 2 {
+                let value_sep = 10_f32.powi(height.log10().floor() as i32);
+                let line_value = value_sep * y as f32;
+                let line_pos = (scale.m22 * line_value) + scale.m32;
                 canvas::Text {
-                    color: theme.palette().text,
-                    content: format!("{0:.2e}", (line_sep - scale.m32) / scale.m22),
+                    color: theme.palette().primary,
+                    content: format!("{0:.0e}", line_value),
                     font: iced::Font::DEFAULT,
                     horizontal_alignment: iced::alignment::Horizontal::Left,
                     vertical_alignment: iced::alignment::Vertical::Bottom,
                     line_height: 1.0.into(),
-                    position: Point::new(0.0, line_sep),
+                    position: Point::new(1.0, line_pos),
                     size: text_size.into(),
                     shaping: iced::widget::text::Shaping::Basic,
                 }
                 .draw_with(|path, color| frame.stroke(&path, stroke.with_color(color)));
                 let graph_line = canvas::Path::line(
-                    Point::new(bounds.size().width, line_sep),
-                    Point::new(0.0, line_sep),
+                    Point::new(bounds.size().width, line_pos),
+                    Point::new(0.0, line_pos),
                 );
                 frame.stroke(&graph_line, background_stroke);
             }
-            for x in 1..x_lines + 1 {
-                let line_sep = bounds.size().width - x_sep * x as f32;
+            for x in -1..(x_lines * 2) - 1 {
+                let value_sep = 10_f32.powi(((end - start) as f32).log10().floor() as i32 - 1);
+                let line_value = 5.0 * value_sep * x as f32;
+                let line_pos = (scale.m11 * line_value) + scale.m31;
                 canvas::Text {
-                    color: theme.palette().text,
-                    content: format!("{0:.2e}", (line_sep - scale.m31) / scale.m11),
+                    color: theme.palette().primary,
+                    content: format!("{0:.0e}", line_value),
                     font: iced::Font::DEFAULT,
                     horizontal_alignment: iced::alignment::Horizontal::Center,
                     vertical_alignment: iced::alignment::Vertical::Bottom,
                     line_height: 1.0.into(),
-                    position: Point::new(line_sep, bounds.size().height - 10.0),
+                    position: Point::new(line_pos, bounds.size().height - 10.0),
                     size: text_size.into(),
                     shaping: iced::widget::text::Shaping::Basic,
                 }
                 .draw_with(|path, color| frame.stroke(&path, stroke.with_color(color)));
                 let graph_line = canvas::Path::line(
-                    Point::new(line_sep, bounds.size().height - 20.0),
-                    Point::new(line_sep, 0.0),
+                    Point::new(line_pos, bounds.size().height - 20.0),
+                    Point::new(line_pos, 0.0),
                 );
                 frame.stroke(&graph_line, background_stroke);
             }
@@ -163,9 +168,8 @@ pub mod graph {
                     mouse::Event::WheelScrolled {
                         delta: mouse::ScrollDelta::Pixels { x, y },
                     } => {
-                        state.x_scale += x / 1000.0;
-                        state.y_scale -= y / 1000.0;
-                        state.x_shift *= 10_f32.powf(x / 1000.0);
+                        state.x_scale += x / 400.0;
+                        state.y_scale -= y / 400.0;
                         event_status = event::Status::Captured;
                     }
                     mouse::Event::ButtonPressed(mouse::Button::Left) => {
