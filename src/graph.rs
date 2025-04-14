@@ -99,8 +99,8 @@ pub mod graph {
             };
             frame.stroke(&lines.build().transform(&scale), stroke);
             let text_size = 16.0;
-            let y_lines = 16;
-            let x_lines = 16;
+            let y_lines = 10;
+            let x_lines = 10;
             for y in 0..y_lines {
                 let value_sep = 10_f32.powi((height - bottom).log10() as i32);
                 let line_value = value_sep * ((bottom / value_sep).floor() + y as f32);
@@ -127,16 +127,6 @@ pub mod graph {
                 let value_sep = 10_f32.powi(((end - start) as f32).log10().floor() as i32);
                 let line_value = value_sep * ((start as f32 / value_sep).floor() + x as f32);
                 let line_pos = (scale.m11 * line_value) + scale.m31;
-                if x == 0 {
-                    let _line_debug = format!(
-                        "sep: {:.0e}, value: {}, pos: {}, start: {:.3e}",
-                        value_sep,
-                        line_value,
-                        line_pos,
-                        (start as f32 / value_sep).floor()
-                    );
-                    println!("{}", _line_debug);
-                }
                 canvas::Text {
                     color: theme.palette().primary,
                     content: format!("{0:.1e}", line_value),
