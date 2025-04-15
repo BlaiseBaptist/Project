@@ -2,7 +2,7 @@ use iced::{
     time,
     widget::{
         button, canvas, column, container, pane_grid, pane_grid::Configuration, pick_list, row,
-        slider, text, text_input, Container,
+        slider, text, text_input, toggler, Container,
     },
     Fill, Subscription,
 };
@@ -15,11 +15,11 @@ enum Pane {
     Graph(Graph),
     Controls,
 }
+
 #[derive(Debug, Clone)]
 enum Message {
     Resize(pane_grid::ResizeEvent),
     Move(pane_grid::DragEvent),
-    Save,
     PathChanged(String),
     ChangeAvlbPort(String),
     ChangeOpenPort(String),
@@ -28,8 +28,10 @@ enum Message {
     Split(pane_grid::Pane),
     Close(pane_grid::Pane),
     SwapEndianness(pane_grid::Pane),
-    Update,
     ChangeNumberOfPorts(usize),
+    Save,
+    Update,
+    SwapTargetToSave(bool),
 }
 struct App {
     panes: pane_grid::State<Pane>,
@@ -40,6 +42,7 @@ struct App {
     open_port: usize,
     internal_ports: usize,
     open_delay: usize,
+    is_buffer: bool,
 }
 impl Default for App {
     fn default() -> App {
@@ -50,23 +53,17 @@ impl App {
     fn new() -> Self {
         let config = Configuration::Pane(Pane::Controls);
         let g_state = pane_grid::State::with_configuration(config);
-        let avlb_ports = serialport::available_ports()
-            .unwrap()
-            .into_iter()
-            .map(|port| port.port_name)
-            .chain(vec!["string".to_string()].into_iter())
-            .collect();
-        let open_ports = port::port::from_string("dummy", 1);
-        // let open_ports = vec![];
+        let open_ports = vec![];
         App {
             panes: g_state,
             path: "graph1.csv".to_string(),
-            avlb_ports,
+            avlb_ports: get_avlb_ports(),
             open_ports,
             avlb_port: 0,
             open_port: 0,
             internal_ports: 1,
             open_delay: 0,
+            is_buffer: true,
         }
     }
     fn view(&self) -> Container<Message> {
@@ -90,6 +87,7 @@ impl App {
                         self.internal_ports,
                         self.path.clone(),
                         pane,
+                        self.is_buffer,
                     )
                 }
             })
@@ -112,25 +110,35 @@ impl App {
             }
             Message::Move(_) => {}
             Message::Save => {
-                let _ = write_file(
-                    self.panes
-                        .iter()
-                        .filter_map(|(_p, t)| match t {
-                            Pane::Graph(g) => Some(g.get_values()),
-                            _ => None,
-                        })
-                        .collect(),
-                    &self.path,
-                );
+                if self.is_buffer {
+                    let _ = write_buffer(
+                        self.panes
+                            .iter()
+                            .filter_map(|(_p, t)| match t {
+                                Pane::Graph(g) => Some(g),
+                                _ => None,
+                            })
+                            .collect(),
+                    );
+                    println!("saved to temp buffer");
+                } else {
+                    let _ = write_file(
+                        self.panes
+                            .iter()
+                            .filter_map(|(_p, t)| match t {
+                                Pane::Graph(g) => Some(g.get_values()),
+                                _ => None,
+                            })
+                            .collect(),
+                        &self.path,
+                    );
+                    println!("saved to file");
+                }
             }
+            Message::SwapTargetToSave(v) => self.is_buffer = v,
             Message::PathChanged(path) => self.path = path,
             Message::ChangeAvlbPort(port_name) => {
-                self.avlb_ports = serialport::available_ports()
-                    .unwrap()
-                    .into_iter()
-                    .map(|port| port.port_name)
-                    .chain(vec!["dummy".to_string()].into_iter())
-                    .collect();
+                self.avlb_ports = get_avlb_ports();
                 self.avlb_port = self
                     .avlb_ports
                     .iter()
@@ -216,9 +224,12 @@ fn controls_pane<'a>(
     internal_ports: usize,
     path: String,
     pane: pane_grid::Pane,
+    is_buffer: bool,
 ) -> Container<'a, Message> {
     let avlb_port = avlb_ports[current_avlb_port].clone();
-    let open_port = open_ports[current_open_port].clone();
+    let open_port = open_ports
+        .get(current_open_port)
+        .map_or("".to_string(), |v| v.clone());
     container(
         column![
             row![
@@ -236,6 +247,9 @@ fn controls_pane<'a>(
                 button("Close Port").on_press(Message::ClosePort(current_open_port))
             ]
             .spacing(10),
+            toggler(is_buffer)
+                .on_toggle(Message::SwapTargetToSave)
+                .label("Save to Temp Buffer"),
             button(
                 row![
                     text("save to:")
@@ -243,7 +257,11 @@ fn controls_pane<'a>(
                         .line_height(1.5)
                         .height(30),
                     text_input("Path", &path)
-                        .on_input(Message::PathChanged)
+                        .on_input_maybe(if is_buffer {
+                            None
+                        } else {
+                            Some(Message::PathChanged)
+                        })
                         .line_height(1.5)
                 ]
                 .spacing(10)
@@ -273,6 +291,21 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     ])
     .padding(10)
     .style(style::style::graph)
+}
+fn write_buffer(data: Vec<&Graph>) -> std::io::Result<()> {
+    for graph in data {
+        let mut f = fs::File::create(format!(".buffer{}", graph.port.name()))?;
+        let _ = f.write_all(graph.values.as_flattened())?;
+    }
+    Ok(())
+}
+fn get_avlb_ports() -> Vec<String> {
+    serialport::available_ports()
+        .unwrap()
+        .into_iter()
+        .map(|port| port.port_name)
+        .chain(vec!["dummy".to_string(), ".buffer".to_string()].into_iter())
+        .collect()
 }
 fn write_file(data: Vec<Vec<f32>>, path: &String) -> std::io::Result<()> {
     let mut f = fs::File::create(path)?;
