@@ -2,7 +2,7 @@ use iced::{
     time,
     widget::{
         button, canvas, column, container, pane_grid, pane_grid::Configuration, pick_list, row,
-        slider, text, text_input, toggler, Container,
+        slider, text, text_input, Container, Space,
     },
     Fill, Subscription,
 };
@@ -29,9 +29,8 @@ enum Message {
     Close(pane_grid::Pane),
     SwapEndianness(pane_grid::Pane),
     ChangeNumberOfPorts(usize),
-    Save,
+    Save(bool),
     Update,
-    SwapTargetToSave(bool),
 }
 struct App {
     panes: pane_grid::State<Pane>,
@@ -42,7 +41,6 @@ struct App {
     open_port: usize,
     internal_ports: usize,
     open_delay: usize,
-    is_buffer: bool,
 }
 impl Default for App {
     fn default() -> App {
@@ -63,7 +61,6 @@ impl App {
             open_port: 0,
             internal_ports: 1,
             open_delay: 0,
-            is_buffer: true,
         }
     }
     fn view(&self) -> Container<Message> {
@@ -87,7 +84,6 @@ impl App {
                         self.internal_ports,
                         self.path.clone(),
                         pane,
-                        self.is_buffer,
                     )
                 }
             })
@@ -109,8 +105,8 @@ impl App {
                 self.panes.drop(pane, target)
             }
             Message::Move(_) => {}
-            Message::Save => {
-                if self.is_buffer {
+            Message::Save(is_buffer) => {
+                if is_buffer {
                     let _ = write_buffer(
                         self.panes
                             .iter()
@@ -135,7 +131,6 @@ impl App {
                     println!("saved to file");
                 }
             }
-            Message::SwapTargetToSave(v) => self.is_buffer = v,
             Message::PathChanged(path) => self.path = path,
             Message::ChangeAvlbPort(port_name) => {
                 self.avlb_ports = get_avlb_ports();
@@ -153,6 +148,7 @@ impl App {
                     .unwrap_or(0);
             }
             Message::OpenPort(port_index, number_of_ports) => {
+                println!("opening {}", self.avlb_ports[port_index]);
                 self.open_ports.append(&mut port::port::from_string(
                     self.avlb_ports[port_index].as_str(),
                     number_of_ports,
@@ -171,9 +167,8 @@ impl App {
                 }
             }
             Message::Split(pane) => {
-                if self.open_port == 0 {
-                    self.open_ports
-                        .append(&mut port::port::from_string("dummy", 1))
+                if self.open_port >= self.open_ports.len() {
+                    return;
                 }
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
@@ -181,9 +176,6 @@ impl App {
                     Pane::Graph(Graph::new(self.open_ports.remove(self.open_port))),
                 );
                 self.open_delay = 10;
-                if self.open_port >= self.open_ports.len() {
-                    self.open_port = 0
-                }
             }
             Message::Close(pane) => {
                 self.panes.close(pane);
@@ -224,57 +216,109 @@ fn controls_pane<'a>(
     internal_ports: usize,
     path: String,
     pane: pane_grid::Pane,
-    is_buffer: bool,
 ) -> Container<'a, Message> {
     let avlb_port = avlb_ports[current_avlb_port].clone();
     let open_port = open_ports
         .get(current_open_port)
         .map_or("".to_string(), |v| v.clone());
+    const LINE_HEIGHT: f32 = 1.6;
+    const TEXT_SIZE: f32 = 16.0;
+    const BUTTON_WIDTH: f32 = 120.0;
+    const ROW_SPACING: f32 = 8.0;
+    const ROW_HEIGHT: f32 = 32.0;
     container(
         column![
             row![
-                pick_list(avlb_ports, Some(avlb_port), Message::ChangeAvlbPort),
-                button(text(format!("Open {} Ports", internal_ports)))
-                    .on_press(Message::OpenPort(current_avlb_port, internal_ports)),
+                button(
+                    text(format!(
+                        "Open {} Port{}",
+                        internal_ports,
+                        if internal_ports == 1 {
+                            "".to_string()
+                        } else {
+                            "s".to_string()
+                        }
+                    ))
+                    .line_height(LINE_HEIGHT)
+                    .size(TEXT_SIZE)
+                    .center()
+                )
+                .width(BUTTON_WIDTH)
+                .on_press(Message::OpenPort(current_avlb_port, internal_ports)),
                 slider(1_f32..=32_f32, internal_ports as f32, |x| {
                     Message::ChangeNumberOfPorts(x as usize)
                 })
+                .width(320),
+                Space::with_width(Fill),
+                pick_list(avlb_ports, Some(avlb_port), Message::ChangeAvlbPort)
+                    .text_line_height(LINE_HEIGHT)
+                    .text_size(TEXT_SIZE)
+                    .width(480),
             ]
-            .spacing(10),
+            .height(ROW_HEIGHT)
+            .spacing(ROW_SPACING)
+            .align_y(iced::alignment::Vertical::Center),
             row![
-                pick_list(open_ports, Some(open_port), Message::ChangeOpenPort),
-                button("New Graph").on_press(Message::Split(pane)),
-                button("Close Port").on_press(Message::ClosePort(current_open_port))
+                button(
+                    text("New Graph")
+                        .line_height(LINE_HEIGHT)
+                        .size(TEXT_SIZE)
+                        .center()
+                )
+                .width(120)
+                .on_press(Message::Split(pane)),
+                button(
+                    text("Close Port")
+                        .line_height(LINE_HEIGHT)
+                        .size(TEXT_SIZE)
+                        .center()
+                )
+                .width(120)
+                .on_press(Message::ClosePort(current_open_port)),
+                Space::with_width(Fill),
+                pick_list(open_ports, Some(open_port), Message::ChangeOpenPort)
+                    .text_line_height(LINE_HEIGHT)
+                    .text_size(TEXT_SIZE)
+                    .width(480),
             ]
-            .spacing(10),
-            toggler(is_buffer)
-                .on_toggle(Message::SwapTargetToSave)
-                .label("Save to Temp Buffer"),
-            button(
-                row![
-                    text("save to:")
-                        .align_y(iced::alignment::Vertical::Center)
-                        .line_height(1.5)
-                        .height(30),
-                    text_input("Path", &path)
-                        .on_input_maybe(if is_buffer {
-                            None
-                        } else {
-                            Some(Message::PathChanged)
-                        })
-                        .line_height(1.5)
-                ]
-                .spacing(10)
-            )
-            .width(Fill)
-            .on_press(Message::Save),
+            .height(ROW_HEIGHT)
+            .spacing(ROW_SPACING)
+            .align_y(iced::alignment::Vertical::Center),
+            row![
+                button(
+                    text("Save to Buffer")
+                        .line_height(LINE_HEIGHT)
+                        .size(TEXT_SIZE)
+                        .center()
+                )
+                .width(BUTTON_WIDTH)
+                .on_press(Message::Save(true)),
+                button(
+                    text("Save to:")
+                        .line_height(LINE_HEIGHT)
+                        .size(TEXT_SIZE)
+                        .center()
+                )
+                .width(BUTTON_WIDTH)
+                .on_press(Message::Save(false)),
+                Space::with_width(Fill),
+                text_input("Path", &path)
+                    .on_input(Message::PathChanged)
+                    .on_submit(Message::Save(false))
+                    .line_height(LINE_HEIGHT)
+                    .size(TEXT_SIZE)
+                    .width(480)
+            ]
+            .height(ROW_HEIGHT)
+            .spacing(ROW_SPACING)
+            .align_y(iced::alignment::Vertical::Center),
         ]
-        .spacing(10),
+        .spacing(ROW_SPACING),
     )
     .style(style::style::graph)
     .width(Fill)
     .height(Fill)
-    .padding(10)
+    .padding(ROW_SPACING)
 }
 fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     container(column![
@@ -294,8 +338,9 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
 }
 fn write_buffer(data: Vec<&Graph>) -> std::io::Result<()> {
     for graph in data {
-        let mut f = fs::File::create(format!(".buffer{}", graph.port.name()))?;
-        let _ = f.write_all(graph.values.as_flattened())?;
+        let mut port = serialport::new(".buffer", 0).open()?;
+        // let mut f = fs::File::create(".buffer")?;
+        port.write_all(graph.values.as_flattened())?;
     }
     Ok(())
 }
@@ -304,7 +349,7 @@ fn get_avlb_ports() -> Vec<String> {
         .unwrap()
         .into_iter()
         .map(|port| port.port_name)
-        .chain(vec!["dummy".to_string(), ".buffer".to_string()].into_iter())
+        .chain(vec!["dummy".to_string()].into_iter())
         .collect()
 }
 fn write_file(data: Vec<Vec<f32>>, path: &String) -> std::io::Result<()> {
