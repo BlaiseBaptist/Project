@@ -35,11 +35,22 @@ pub mod port {
         current_port_read: usize,
     }
     impl PhysicalPort {
-        fn new(port: Box<dyn serialport::SerialPort>, internal_ports: usize, name: String) -> Self {
+        fn new(
+            port: Box<dyn serialport::SerialPort>,
+            internal_ports: usize,
+            name: String,
+            starting_values: &[[u8; 4]],
+        ) -> Self {
             let mut values = Vec::with_capacity(internal_ports);
             for _ in 0..internal_ports {
                 let (sender, receiver) = mpsc::channel::<Item>();
                 values.push((sender, Some(receiver)));
+            }
+            for (i, value) in starting_values.iter().enumerate() {
+                values[i % internal_ports]
+                    .0
+                    .send(*value)
+                    .expect("how did you get here? (failed to send to newly created port)");
             }
             PhysicalPort {
                 port,
@@ -59,7 +70,6 @@ pub mod port {
         fn step_at(mut self, time: Duration) {
             std::thread::spawn(move || loop {
                 if !self.next() {
-                    println!("port is closed");
                     return;
                 }
                 std::thread::sleep(time);
@@ -81,14 +91,28 @@ pub mod port {
             }
         }
     }
-    pub fn from_string(s: &str, internal_ports: usize, send: bool) -> Vec<Box<dyn Port>> {
-        let mut main_port = PhysicalPort::new(
-            serialport::new(s, 9600)
-                .open()
-                .unwrap_or(Box::new(RealDummyPort::new(send))),
-            internal_ports,
-            s.to_string(),
-        );
+    pub fn from_string(
+        s: &str,
+        internal_ports: usize,
+        values: Option<&[Item]>,
+    ) -> Vec<Box<dyn Port>> {
+        let mut main_port = match values {
+            Some(v) => PhysicalPort::new(
+                Box::new(RealDummyPort::new(false)),
+                internal_ports,
+                s.to_string(),
+                v,
+            ),
+            None => PhysicalPort::new(
+                serialport::new(s, 9600)
+                    .open()
+                    .expect("how did you get here? (opened pre-checked port)"),
+                // .unwrap_or(Box::new(RealDummyPort::new(true))),
+                internal_ports,
+                s.to_string(),
+                &[],
+            ),
+        };
         let return_val = (0..internal_ports)
             .map(|_| main_port.split().unwrap())
             .collect();
@@ -102,7 +126,6 @@ pub mod port {
     }
     impl RealDummyPort {
         fn new(on: bool) -> Self {
-            println!("creating dummy port");
             RealDummyPort {
                 value: [0; 4],
                 value_count: 0,

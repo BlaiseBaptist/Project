@@ -2,7 +2,7 @@ use iced::{
     time,
     widget::{
         button, canvas, column, container, pane_grid, pane_grid::Configuration, pick_list, row,
-        slider, text, text_input, Container, Space,
+        slider, text, text_input, Button, Container, Space,
     },
     Fill, Subscription,
 };
@@ -47,6 +47,7 @@ struct App {
     open_port: usize,
     internal_ports: usize,
     open_delay: usize,
+    status_message: String,
 }
 impl Default for App {
     fn default() -> App {
@@ -67,6 +68,7 @@ impl App {
             open_port: 0,
             internal_ports: 1,
             open_delay: 0,
+            status_message: "Ready to go".to_string(),
         }
     }
     fn view(&self) -> Container<Message> {
@@ -78,7 +80,7 @@ impl App {
                     graph_pane(g, pane)
                 }
                 Pane::Controls => {
-                    title_text = "App Controls".to_string();
+                    title_text = format!("Status: {:>2}", self.status_message);
                     controls_pane(
                         self.avlb_ports.clone(),
                         self.open_ports
@@ -88,7 +90,7 @@ impl App {
                         self.avlb_port,
                         self.open_port,
                         self.internal_ports,
-                        self.path.clone(),
+                        &self.path,
                         pane,
                     )
                 }
@@ -113,7 +115,7 @@ impl App {
             Message::Move(_) => {}
             Message::Save(is_buffer) => {
                 if is_buffer {
-                    let error = write_buffer(
+                    let _ = write_buffer(
                         self.panes
                             .iter()
                             .filter_map(|(_p, t)| match t {
@@ -122,7 +124,7 @@ impl App {
                             })
                             .collect(),
                     );
-                    println!("writing to temp buffer returned {:?}", error);
+                    self.status_message = "Saved All Graphs to Buffer".to_string();
                 } else {
                     let _ = write_file(
                         self.panes
@@ -134,7 +136,7 @@ impl App {
                             .collect(),
                         &self.path,
                     );
-                    println!("saved to file");
+                    self.status_message = "Saved All Graphs to File".to_string();
                 }
             }
             Message::PathChanged(path) => self.path = path,
@@ -154,11 +156,11 @@ impl App {
                     .unwrap_or(0);
             }
             Message::OpenPort(port_index, number_of_ports) => {
-                println!("opening {}", self.avlb_ports[port_index]);
+                self.status_message = format!("Opening {}", self.avlb_ports[port_index]);
                 self.open_ports.append(&mut from_string(
                     self.avlb_ports[port_index].as_str(),
                     number_of_ports,
-                    true,
+                    None,
                 ));
                 if self.avlb_port >= self.avlb_ports.len() {
                     self.avlb_port = 0
@@ -180,7 +182,7 @@ impl App {
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
                     pane,
-                    Pane::Graph(Graph::new(self.open_ports.remove(self.open_port), vec![])),
+                    Pane::Graph(Graph::new(self.open_ports.remove(self.open_port))),
                 );
                 self.open_delay = 10;
             }
@@ -195,18 +197,22 @@ impl App {
             Message::OpenBuffer(pane) => {
                 let mut file = fs::File::open(".buffer").expect("no buffer");
                 let mut buf: Vec<u8> = Vec::new();
-                file.read_to_end(&mut buf).expect("idk what error here");
+                file.read_to_end(&mut buf).expect("how did you get here? ");
                 let values: Vec<[u8; 4]> = buf
                     .as_slice()
                     .chunks_exact(4)
                     .map(|x| x.try_into().unwrap())
                     .collect();
-                println!("gonna split");
-                self.panes.split(
-                    pane_grid::Axis::Horizontal,
-                    pane,
-                    Pane::Graph(Graph::new(from_string("", 1, false).remove(0), values)),
-                );
+                for buf_port in from_string("buffer", self.internal_ports, Some(&values)) {
+                    self.panes
+                        .split(
+                            pane_grid::Axis::Horizontal,
+                            pane,
+                            Pane::Graph(Graph::new(buf_port)),
+                        )
+                        .expect("how did you get here?");
+                }
+                self.status_message = "Open Graph From buffer".to_string();
                 self.open_delay = 10;
             }
             Message::Update => {
@@ -232,125 +238,100 @@ impl App {
         time::every(Duration::from_micros(100)).map(|_| Message::Update)
     }
 }
+const LINE_HEIGHT: f32 = 1.6;
+const TEXT_SIZE: f32 = 16.0;
+const UNIT_WIDTH: f32 = 160.0;
+const ROW_SPACING: f32 = 8.0;
+const ROW_HEIGHT: f32 = 32.0;
 fn controls_pane<'a>(
     avlb_ports: Vec<String>,
     open_ports: Vec<String>,
     current_avlb_port: usize,
     current_open_port: usize,
     internal_ports: usize,
-    path: String,
+    path: &str,
     pane: pane_grid::Pane,
 ) -> Container<'a, Message> {
     let avlb_port = avlb_ports[current_avlb_port].clone();
     let open_port = open_ports
         .get(current_open_port)
         .map_or("".to_string(), |v| v.clone());
-    const LINE_HEIGHT: f32 = 1.6;
-    const TEXT_SIZE: f32 = 16.0;
-    const BUTTON_WIDTH: f32 = 120.0;
-    const ROW_SPACING: f32 = 8.0;
-    const ROW_HEIGHT: f32 = 32.0;
     container(
         column![
             row![
-                button(
-                    text(format!(
+                controls_pane_button(Box::leak::<'a>(
+                    format!(
                         "Open {} Port{}",
                         internal_ports,
-                        if internal_ports == 1 {
-                            "".to_string()
-                        } else {
-                            "s".to_string()
-                        }
-                    ))
-                    .line_height(LINE_HEIGHT)
-                    .size(TEXT_SIZE)
-                    .center()
-                )
-                .width(BUTTON_WIDTH)
+                        if internal_ports == 1 { "" } else { "s" }
+                    )
+                    .into_boxed_str()
+                ))
                 .on_press(Message::OpenPort(current_avlb_port, internal_ports)),
-                slider(1_f32..=32_f32, internal_ports as f32, |x| {
-                    Message::ChangeNumberOfPorts(x as usize)
-                })
-                .width(320),
-                Space::with_width(Fill),
-                pick_list(avlb_ports, Some(avlb_port), Message::ChangeAvlbPort)
-                    .text_line_height(LINE_HEIGHT)
-                    .text_size(TEXT_SIZE)
-                    .width(480),
-            ]
-            .height(ROW_HEIGHT)
-            .spacing(ROW_SPACING)
-            .align_y(iced::alignment::Vertical::Center),
-            row![
-                button(
-                    text("New Graph")
-                        .line_height(LINE_HEIGHT)
-                        .size(TEXT_SIZE)
-                        .center()
-                )
-                .width(120)
-                .on_press(Message::Split(pane)),
-                button(
-                    text("Close Port")
-                        .line_height(LINE_HEIGHT)
-                        .size(TEXT_SIZE)
-                        .center()
-                )
-                .width(120)
-                .on_press(Message::ClosePort(current_open_port)),
+                controls_pane_button("New Graph").on_press(Message::Split(pane)),
+                controls_pane_button("Close Port").on_press(Message::ClosePort(current_open_port)),
                 Space::with_width(Fill),
                 pick_list(open_ports, Some(open_port), Message::ChangeOpenPort)
                     .text_line_height(LINE_HEIGHT)
                     .text_size(TEXT_SIZE)
-                    .width(480),
+                    .width(UNIT_WIDTH * 3.0),
             ]
             .height(ROW_HEIGHT)
             .spacing(ROW_SPACING)
             .align_y(iced::alignment::Vertical::Center),
             row![
-                button(
-                    text("Save to Buffer")
-                        .line_height(LINE_HEIGHT)
-                        .size(TEXT_SIZE)
-                        .center()
-                )
-                .width(BUTTON_WIDTH)
-                .on_press(Message::Save(true)),
-                button(
-                    text("Open Buffer")
-                        .line_height(LINE_HEIGHT)
-                        .size(TEXT_SIZE)
-                        .center()
-                )
-                .width(BUTTON_WIDTH)
+                slider(1_f32..=32_f32, internal_ports as f32, |x| {
+                    Message::ChangeNumberOfPorts(x as usize)
+                })
+                .width(UNIT_WIDTH * 3.0 + ROW_SPACING * 2.0),
+                Space::with_width(Fill),
+                pick_list(avlb_ports, Some(avlb_port), Message::ChangeAvlbPort)
+                    .text_line_height(LINE_HEIGHT)
+                    .text_size(TEXT_SIZE)
+                    .width(UNIT_WIDTH * 3.0),
+            ]
+            .height(ROW_HEIGHT)
+            .spacing(ROW_SPACING)
+            .align_y(iced::alignment::Vertical::Center),
+            row![
+                controls_pane_button(Box::leak::<'a>(
+                    format!(
+                        "Open {} Buffer{}",
+                        internal_ports,
+                        if internal_ports == 1 { "" } else { "s" }
+                    )
+                    .into_boxed_str()
+                ))
                 .on_press(Message::OpenBuffer(pane)),
-                button(
-                    text("Save to:")
-                        .line_height(LINE_HEIGHT)
-                        .size(TEXT_SIZE)
-                        .center()
-                )
-                .width(BUTTON_WIDTH)
-                .on_press(Message::Save(false)),
+                controls_pane_button("Save to Buffer").on_press(Message::Save(true)),
+                controls_pane_button("Save to:").on_press(Message::Save(false)),
                 Space::with_width(Fill),
                 text_input("Path", &path)
                     .on_input(Message::PathChanged)
                     .on_submit(Message::Save(false))
                     .line_height(LINE_HEIGHT)
                     .size(TEXT_SIZE)
-                    .width(480)
+                    .width(UNIT_WIDTH * 3.0)
             ]
             .height(ROW_HEIGHT)
             .spacing(ROW_SPACING)
             .align_y(iced::alignment::Vertical::Center),
         ]
-        .spacing(ROW_SPACING),
+        .spacing(8.0), //column spacing
     )
     .style(style::style::graph)
     .width(Fill)
     .height(Fill)
     .padding(ROW_SPACING)
+}
+fn controls_pane_button<'a>(contents: &'a str) -> Button<'a, Message> {
+    button(
+        text(contents)
+            .line_height(LINE_HEIGHT)
+            .size(TEXT_SIZE)
+            .center(),
+    )
+    .width(UNIT_WIDTH)
 }
 fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
     container(column![
@@ -370,6 +351,7 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
 }
 fn write_buffer(data: Vec<&Graph>) -> std::io::Result<()> {
     for graph in data {
+        println!("{:?}", graph);
         let mut file = fs::File::create(".buffer")?;
         file.write_all(graph.values.as_flattened())?;
         file.flush()?;
@@ -393,7 +375,6 @@ fn write_file(data: Vec<Vec<f32>>, path: &String) -> std::io::Result<()> {
         .get(data.len() - 1)
         .ok_or(std::io::Error::other("oh no"))?
         .len();
-    println!("{}", max_size);
     for index in 0..max_size {
         writeln!(
             f,
