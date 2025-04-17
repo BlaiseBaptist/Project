@@ -4,3 +4,4 @@
 *.csv
 macros.txt
 application/cache
+.buffer
