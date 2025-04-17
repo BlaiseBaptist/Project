@@ -10,26 +10,6 @@ pub mod port {
             "dummy".to_string()
         }
     }
-    // #[derive(Debug)]
-    // pub struct DummyPort {
-    //     value_count: f32,
-    // }
-    // impl Iterator for DummyPort {
-    //     type Item = Item;
-    //     fn next(&mut self) -> Option<Self::Item> {
-    //         if self.value_count > 100.0 {
-    //             self.value_count = 1.0
-    //         }
-    //         self.value_count *= 1.0001;
-    //         Some(self.value_count.to_be_bytes())
-    //     }
-    // }
-    // impl Port for DummyPort {}
-    // impl std::default::Default for DummyPort {
-    //     fn default() -> Self {
-    //         DummyPort { value_count: 1_f32 }
-    //     }
-    // }
     #[derive(Debug)]
     struct MultiPort {
         port: mpsc::Receiver<Item>,
@@ -101,11 +81,11 @@ pub mod port {
             }
         }
     }
-    pub fn from_string(s: &str, internal_ports: usize) -> Vec<Box<dyn Port>> {
+    pub fn from_string(s: &str, internal_ports: usize, send: bool) -> Vec<Box<dyn Port>> {
         let mut main_port = PhysicalPort::new(
             serialport::new(s, 9600)
                 .open()
-                .unwrap_or(Box::new(RealDummyPort::new())),
+                .unwrap_or(Box::new(RealDummyPort::new(send))),
             internal_ports,
             s.to_string(),
         );
@@ -118,13 +98,15 @@ pub mod port {
     pub struct RealDummyPort {
         value: Item,
         value_count: usize,
+        send: bool,
     }
     impl RealDummyPort {
-        fn new() -> Self {
+        fn new(on: bool) -> Self {
             println!("creating dummy port");
             RealDummyPort {
                 value: [0; 4],
                 value_count: 0,
+                send: on,
             }
         }
     }
@@ -132,14 +114,15 @@ pub mod port {
     impl _AssertSend<RealDummyPort> {}
     impl std::io::Read for RealDummyPort {
         fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-            self.value_count += 1;
-            self.value = ((self.value_count / 100) as f32).to_be_bytes();
-
-            // self.value = (self.value_count as f32 / 100.0).sin().to_be_bytes();
-            for x in 0..4 {
-                buf[x] = self.value[x];
+            if self.send {
+                self.value_count += 1;
+                self.value = ((self.value_count as f32) / 100.0).sin().to_be_bytes();
+                for x in 0..4 {
+                    buf[x] = self.value[x];
+                }
+                return Ok(4);
             }
-            Ok(4)
+            Ok(0)
         }
     }
     impl std::io::Write for RealDummyPort {
@@ -222,7 +205,11 @@ pub mod port {
             Ok(true)
         }
         fn bytes_to_read(&self) -> Result<u32, serialport::Error> {
-            Ok(1024)
+            if self.send {
+                Ok(1024)
+            } else {
+                Ok(0)
+            }
             //inf
         }
         fn bytes_to_write(&self) -> Result<u32, serialport::Error> {
@@ -236,7 +223,7 @@ pub mod port {
             Ok(())
         }
         fn try_clone(&self) -> Result<Box<dyn serialport::SerialPort>, serialport::Error> {
-            Ok(Box::new(RealDummyPort::new()))
+            Ok(Box::new(RealDummyPort::new(self.send)))
         }
         fn set_break(&self) -> Result<(), serialport::Error> {
             Ok(())

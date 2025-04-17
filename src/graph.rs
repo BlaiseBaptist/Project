@@ -13,9 +13,9 @@ pub mod graph {
         pub converter: converter,
     }
     impl Graph {
-        pub fn new(port: Box<dyn port::port::Port>) -> Graph {
+        pub fn new(port: Box<dyn port::port::Port>, values: Vec<[u8; 4]>) -> Graph {
             Graph {
-                values: vec![],
+                values,
                 port,
                 converter: converter::be_f32,
             }

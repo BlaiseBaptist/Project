@@ -6,11 +6,16 @@ use iced::{
     },
     Fill, Subscription,
 };
-use std::{fs, io::Write, time::Duration};
+use std::{
+    fs,
+    io::{Read, Write},
+    time::Duration,
+};
 mod graph;
 mod port;
 mod style;
 use graph::graph::Graph;
+use port::port::from_string;
 enum Pane {
     Graph(Graph),
     Controls,
@@ -30,6 +35,7 @@ enum Message {
     SwapEndianness(pane_grid::Pane),
     ChangeNumberOfPorts(usize),
     Save(bool),
+    OpenBuffer(pane_grid::Pane),
     Update,
 }
 struct App {
@@ -107,7 +113,7 @@ impl App {
             Message::Move(_) => {}
             Message::Save(is_buffer) => {
                 if is_buffer {
-                    let _ = write_buffer(
+                    let error = write_buffer(
                         self.panes
                             .iter()
                             .filter_map(|(_p, t)| match t {
@@ -116,7 +122,7 @@ impl App {
                             })
                             .collect(),
                     );
-                    println!("saved to temp buffer");
+                    println!("writing to temp buffer returned {:?}", error);
                 } else {
                     let _ = write_file(
                         self.panes
@@ -149,9 +155,10 @@ impl App {
             }
             Message::OpenPort(port_index, number_of_ports) => {
                 println!("opening {}", self.avlb_ports[port_index]);
-                self.open_ports.append(&mut port::port::from_string(
+                self.open_ports.append(&mut from_string(
                     self.avlb_ports[port_index].as_str(),
                     number_of_ports,
+                    true,
                 ));
                 if self.avlb_port >= self.avlb_ports.len() {
                     self.avlb_port = 0
@@ -173,7 +180,7 @@ impl App {
                 self.panes.split(
                     pane_grid::Axis::Horizontal,
                     pane,
-                    Pane::Graph(Graph::new(self.open_ports.remove(self.open_port))),
+                    Pane::Graph(Graph::new(self.open_ports.remove(self.open_port), vec![])),
                 );
                 self.open_delay = 10;
             }
@@ -185,6 +192,23 @@ impl App {
                 _ => unimplemented!(),
             },
             Message::ChangeNumberOfPorts(internal_ports) => self.internal_ports = internal_ports,
+            Message::OpenBuffer(pane) => {
+                let mut file = fs::File::open(".buffer").expect("no buffer");
+                let mut buf: Vec<u8> = Vec::new();
+                file.read_to_end(&mut buf).expect("idk what error here");
+                let values: Vec<[u8; 4]> = buf
+                    .as_slice()
+                    .chunks_exact(4)
+                    .map(|x| x.try_into().unwrap())
+                    .collect();
+                println!("gonna split");
+                self.panes.split(
+                    pane_grid::Axis::Horizontal,
+                    pane,
+                    Pane::Graph(Graph::new(from_string("", 1, false).remove(0), values)),
+                );
+                self.open_delay = 10;
+            }
             Message::Update => {
                 if self.open_delay == 0 {
                     let _: Vec<_> = self
@@ -294,6 +318,14 @@ fn controls_pane<'a>(
                 .width(BUTTON_WIDTH)
                 .on_press(Message::Save(true)),
                 button(
+                    text("Open Buffer")
+                        .line_height(LINE_HEIGHT)
+                        .size(TEXT_SIZE)
+                        .center()
+                )
+                .width(BUTTON_WIDTH)
+                .on_press(Message::OpenBuffer(pane)),
+                button(
                     text("Save to:")
                         .line_height(LINE_HEIGHT)
                         .size(TEXT_SIZE)
@@ -338,18 +370,21 @@ fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
 }
 fn write_buffer(data: Vec<&Graph>) -> std::io::Result<()> {
     for graph in data {
-        let mut port = serialport::new(".buffer", 0).open()?;
-        // let mut f = fs::File::create(".buffer")?;
-        port.write_all(graph.values.as_flattened())?;
+        let mut file = fs::File::create(".buffer")?;
+        file.write_all(graph.values.as_flattened())?;
+        file.flush()?;
     }
     Ok(())
 }
 fn get_avlb_ports() -> Vec<String> {
-    serialport::available_ports()
-        .unwrap()
+    vec!["dummy".to_string()]
         .into_iter()
-        .map(|port| port.port_name)
-        .chain(vec!["dummy".to_string()].into_iter())
+        .chain(
+            serialport::available_ports()
+                .unwrap()
+                .into_iter()
+                .map(|port| port.port_name),
+        )
         .collect()
 }
 fn write_file(data: Vec<Vec<f32>>, path: &String) -> std::io::Result<()> {
