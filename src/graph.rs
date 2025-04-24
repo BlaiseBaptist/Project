@@ -110,7 +110,7 @@ pub mod graph {
             let y_lines = 10;
             let x_lines = 10;
             for y in 0..y_lines {
-                let value_sep = 10_f32.powi((height - bottom).log10() as i32);
+                let value_sep = 10_f32.powf((height - bottom).log10().floor());
                 let line_value = value_sep * ((bottom / value_sep).floor() + y as f32);
                 let line_pos = (scale.m22 * line_value) + scale.m32;
                 canvas::Text {
@@ -227,8 +227,8 @@ pub mod graph {
     pub enum converter {
         be_f32,
         le_f32,
-        be_u32,
-        le_u32,
+        be_i32,
+        le_i32,
         u8_to_string,
     }
     impl converter {
@@ -236,8 +236,8 @@ pub mod graph {
             match self {
                 converter::be_f32 => f32::from_be_bytes(data),
                 converter::le_f32 => f32::from_le_bytes(data),
-                converter::be_u32 => u32::from_be_bytes(data) as f32,
-                converter::le_u32 => u32::from_le_bytes(data) as f32,
+                converter::be_i32 => i32::from_be_bytes(data) as f32,
+                converter::le_i32 => i32::from_le_bytes(data) as f32,
                 converter::u8_to_string => data
                     .into_iter()
                     .map(|b| char::from(b))
@@ -249,9 +249,9 @@ pub mod graph {
         fn swap(&self) -> Self {
             match self {
                 converter::be_f32 => converter::le_f32,
-                converter::le_f32 => converter::be_u32,
-                converter::be_u32 => converter::le_u32,
-                converter::le_u32 => converter::u8_to_string,
+                converter::le_f32 => converter::be_i32,
+                converter::be_i32 => converter::le_i32,
+                converter::le_i32 => converter::u8_to_string,
                 converter::u8_to_string => converter::be_f32,
             }
         }
@@ -264,8 +264,8 @@ pub mod graph {
                 match self {
                     converter::be_f32 => "be_f32",
                     converter::le_f32 => "le_f32",
-                    converter::be_u32 => "be_u32",
-                    converter::le_u32 => "le_u32",
+                    converter::be_i32 => "be_i32",
+                    converter::le_i32 => "le_i32",
                     converter::u8_to_string => "u8_to_string",
                 }
             )
