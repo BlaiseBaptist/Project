@@ -6,7 +6,6 @@ pub mod graph {
         widget::canvas::{event, Event},
         Point, Rectangle, Renderer, Theme,
     };
-    #[derive(Debug)]
     pub struct Graph {
         pub values: Vec<[u8; 4]>,
         pub port: Box<dyn port::port::Port>,
@@ -31,6 +30,15 @@ pub mod graph {
                 .iter()
                 .map(|x| self.converter.convert(*x))
                 .collect()
+        }
+    }
+    impl std::fmt::Display for Graph {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+            write!(
+                f,
+                "Graph: {{ port: {:?}, converter: {}}}",
+                self.port, self.converter
+            )
         }
     }
     impl<Message> canvas::Program<Message> for Graph {
@@ -59,7 +67,7 @@ pub mod graph {
                 v => v,
             };
             let height = -scale.m32 / scale.m22;
-            let bottom = (bounds.size().height - 20.0 - scale.m32) / scale.m22;
+            let bottom = (bounds.size().height - 10.0 - scale.m32) / scale.m22;
             let mut lines = canvas::path::Builder::new();
             self.values
                 .iter()
@@ -112,7 +120,7 @@ pub mod graph {
                     horizontal_alignment: iced::alignment::Horizontal::Left,
                     vertical_alignment: iced::alignment::Vertical::Bottom,
                     line_height: 1.0.into(),
-                    position: Point::new(1.0, line_pos),
+                    position: Point::new(1.0, line_pos - 4.0),
                     size: text_size.into(),
                     shaping: iced::widget::text::Shaping::Basic,
                 }
@@ -134,13 +142,13 @@ pub mod graph {
                     horizontal_alignment: iced::alignment::Horizontal::Center,
                     vertical_alignment: iced::alignment::Vertical::Bottom,
                     line_height: 1.0.into(),
-                    position: Point::new(line_pos, bounds.size().height - 10.0),
+                    position: Point::new(line_pos, bounds.size().height - 5.0),
                     size: text_size.into(),
                     shaping: iced::widget::text::Shaping::Basic,
                 }
                 .draw_with(|path, color| frame.stroke(&path, stroke.with_color(color)));
                 let graph_line = canvas::Path::line(
-                    Point::new(line_pos, bounds.size().height - 20.0),
+                    Point::new(line_pos, bounds.size().height - 10.0),
                     Point::new(line_pos, 0.0),
                 );
                 frame.stroke(&graph_line, background_stroke);
@@ -215,7 +223,7 @@ pub mod graph {
         }
     }
     #[allow(non_camel_case_types)]
-    #[derive(Debug, PartialEq)]
+    #[derive(PartialEq)]
     pub enum converter {
         be_f32,
         le_f32,
@@ -247,15 +255,20 @@ pub mod graph {
                 converter::u8_to_string => converter::be_f32,
             }
         }
-        pub fn name(&self) -> String {
-            match self {
-                converter::be_f32 => "be_f32",
-                converter::le_f32 => "le_f32",
-                converter::be_u32 => "be_u32",
-                converter::le_u32 => "le_u32",
-                converter::u8_to_string => "u8_to_string",
-            }
-            .to_string()
+    }
+    impl std::fmt::Display for converter {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+            write!(
+                f,
+                "{}",
+                match self {
+                    converter::be_f32 => "be_f32",
+                    converter::le_f32 => "le_f32",
+                    converter::be_u32 => "be_u32",
+                    converter::le_u32 => "le_u32",
+                    converter::u8_to_string => "u8_to_string",
+                }
+            )
         }
     }
 }

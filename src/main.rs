@@ -31,11 +31,11 @@ enum Message {
     OpenPort(usize, usize),
     ClosePort(usize),
     Split(pane_grid::Pane),
-    Close(pane_grid::Pane),
+    Close(pane_grid::Pane, String),
     SwapEndianness(pane_grid::Pane),
     ChangeNumberOfPorts(usize),
     Save(bool),
-    OpenBuffer(pane_grid::Pane),
+    OpenBuffer,
     Update,
 }
 struct App {
@@ -186,7 +186,8 @@ impl App {
                 );
                 self.open_delay = 10;
             }
-            Message::Close(pane) => {
+            Message::Close(pane, graph) => {
+                self.status_message = format!("Closed {}", graph);
                 self.panes.close(pane);
             }
             Message::SwapEndianness(pane) => match self.panes.get_mut(pane) {
@@ -194,23 +195,24 @@ impl App {
                 _ => unimplemented!(),
             },
             Message::ChangeNumberOfPorts(internal_ports) => self.internal_ports = internal_ports,
-            Message::OpenBuffer(pane) => {
+            Message::OpenBuffer => {
                 let mut file = fs::File::open(".buffer").expect("no buffer");
                 let mut buf: Vec<u8> = Vec::new();
-                file.read_to_end(&mut buf).expect("how did you get here? ");
+                file.read_to_end(&mut buf).unwrap();
                 let values: Vec<[u8; 4]> = buf
                     .as_slice()
                     .chunks_exact(4)
                     .map(|x| x.try_into().unwrap())
                     .collect();
                 for buf_port in from_string("buffer", self.internal_ports, Some(&values)) {
-                    self.panes
-                        .split(
-                            pane_grid::Axis::Horizontal,
-                            pane,
-                            Pane::Graph(Graph::new(buf_port)),
-                        )
-                        .expect("how did you get here?");
+                    self.open_ports.push(buf_port);
+                    // self.panes
+                    //     .split(
+                    //         pane_grid::Axis::Horizontal,
+                    //         pane,
+                    //         Pane::Graph(Graph::new(buf_port)),
+                    //     )
+                    //     .unwrap();
                 }
                 self.status_message = "Open Graph From buffer".to_string();
                 self.open_delay = 10;
@@ -271,7 +273,7 @@ fn controls_pane<'a>(
                 controls_pane_button("New Graph").on_press(Message::Split(pane)),
                 controls_pane_button("Close Port").on_press(Message::ClosePort(current_open_port)),
                 Space::with_width(Fill),
-                pick_list(open_ports, Some(open_port), Message::ChangeOpenPort)
+                pick_list(avlb_ports, Some(avlb_port), Message::ChangeAvlbPort)
                     .text_line_height(LINE_HEIGHT)
                     .text_size(TEXT_SIZE)
                     .width(UNIT_WIDTH * 3.0),
@@ -285,7 +287,7 @@ fn controls_pane<'a>(
                 })
                 .width(UNIT_WIDTH * 3.0 + ROW_SPACING * 2.0),
                 Space::with_width(Fill),
-                pick_list(avlb_ports, Some(avlb_port), Message::ChangeAvlbPort)
+                pick_list(open_ports, Some(open_port), Message::ChangeOpenPort)
                     .text_line_height(LINE_HEIGHT)
                     .text_size(TEXT_SIZE)
                     .width(UNIT_WIDTH * 3.0),
@@ -302,7 +304,7 @@ fn controls_pane<'a>(
                     )
                     .into_boxed_str()
                 ))
-                .on_press(Message::OpenBuffer(pane)),
+                .on_press(Message::OpenBuffer),
                 controls_pane_button("Save to Buffer").on_press(Message::Save(true)),
                 controls_pane_button("Save to:").on_press(Message::Save(false)),
                 Space::with_width(Fill),
@@ -334,24 +336,36 @@ fn controls_pane_button<'a>(contents: &'a str) -> Button<'a, Message> {
     .width(UNIT_WIDTH)
 }
 fn graph_pane(graph: &Graph, pane: pane_grid::Pane) -> Container<Message> {
-    container(column![
-        canvas(graph).width(Fill).height(Fill),
-        row![
-            button("Close Pane").on_press(Message::Close(pane)),
-            button(text(format!(
-                "Swap Endianness (currently {})",
-                graph.converter.name()
-            )))
-            .on_press(Message::SwapEndianness(pane))
+    container(
+        column![
+            canvas(graph).width(Fill).height(Fill),
+            row![
+                button(
+                    text("Close Pane")
+                        .line_height(LINE_HEIGHT)
+                        .size(TEXT_SIZE)
+                        .center(),
+                )
+                .width(UNIT_WIDTH * 2.0)
+                .on_press(Message::Close(pane, graph.port.name())),
+                button(
+                    text(format!("Swap Endianness (currently {})", graph.converter))
+                        .line_height(LINE_HEIGHT)
+                        .size(TEXT_SIZE)
+                        .center(),
+                )
+                .width(UNIT_WIDTH * 2.0)
+                .on_press(Message::SwapEndianness(pane))
+            ]
+            .spacing(ROW_SPACING)
         ]
-        .spacing(10)
-    ])
-    .padding(10)
+        .spacing(ROW_SPACING),
+    )
+    .padding(ROW_SPACING)
     .style(style::style::graph)
 }
 fn write_buffer(data: Vec<&Graph>) -> std::io::Result<()> {
     for graph in data {
-        println!("{:?}", graph);
         let mut file = fs::File::create(".buffer")?;
         file.write_all(graph.values.as_flattened())?;
         file.flush()?;

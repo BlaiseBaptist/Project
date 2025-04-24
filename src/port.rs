@@ -67,13 +67,14 @@ pub mod port {
                 name: format!("{} split {}", self.name.clone(), self.current_port_read),
             }))
         }
-        fn step_at(mut self, time: Duration) {
+        fn step_at(mut self, time: Duration) -> Option<String> {
             std::thread::spawn(move || loop {
                 if !self.next() {
-                    return;
+                    return Some("port closed");
                 }
                 std::thread::sleep(time);
             });
+            None
         }
         fn next(&mut self) -> bool {
             let mut serial_buf = vec![[0b0_u8; 4]; self.internal_ports];
@@ -106,8 +107,7 @@ pub mod port {
             None => PhysicalPort::new(
                 serialport::new(s, 9600)
                     .open()
-                    .expect("how did you get here? (opened pre-checked port)"),
-                // .unwrap_or(Box::new(RealDummyPort::new(true))),
+                    .unwrap_or(Box::new(RealDummyPort::new(true))),
                 internal_ports,
                 s.to_string(),
                 &[],
