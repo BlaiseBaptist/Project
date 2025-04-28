@@ -31,7 +31,7 @@ enum Message {
     SwapEndianness(pane_grid::Pane),
     ChangeNumberOfPorts(usize),
     Save(bool),
-    OpenBuffer,
+    OpenBuffer(bool),
     Update,
 }
 struct App {
@@ -191,8 +191,13 @@ impl App {
                 _ => unimplemented!(),
             },
             Message::ChangeNumberOfPorts(internal_ports) => self.internal_ports = internal_ports,
-            Message::OpenBuffer => {
-                let file = fs::File::open(".buffer").expect("no buffer");
+            Message::OpenBuffer(from_dir) => {
+                let file = if from_dir {
+                    fs::File::open(self.path.clone())
+                } else {
+                    fs::File::open(".buffer")
+                }
+                .expect("no buffer");
                 for buf_port in from_string("buffer", self.internal_ports, Some(file)) {
                     self.open_ports.push(buf_port);
                 }
@@ -264,10 +269,11 @@ fn controls_pane<'a>(
             .spacing(ROW_SPACING)
             .align_y(iced::alignment::Vertical::Center),
             row![
-                slider(1_f32..=32_f32, internal_ports as f32, |x| {
+                slider(1_f32..=16_f32, internal_ports as f32, |x| {
                     Message::ChangeNumberOfPorts(x as usize)
                 })
-                .width(UNIT_WIDTH * 3.0 + ROW_SPACING * 2.0),
+                .width(UNIT_WIDTH * 2.0 + ROW_SPACING),
+                controls_pane_button("Open Bin:").on_press(Message::OpenBuffer(true)),
                 Space::with_width(Fill),
                 pick_list(open_ports, Some(open_port), Message::ChangeOpenPort)
                     .text_line_height(LINE_HEIGHT)
@@ -286,13 +292,13 @@ fn controls_pane<'a>(
                     )
                     .into_boxed_str()
                 ))
-                .on_press(Message::OpenBuffer),
+                .on_press(Message::OpenBuffer(false)),
                 controls_pane_button("Save to Buffer").on_press(Message::Save(true)),
                 controls_pane_button("Save to:").on_press(Message::Save(false)),
                 Space::with_width(Fill),
                 text_input("Path", &path)
                     .on_input(Message::PathChanged)
-                    .on_submit(Message::Save(false))
+                    // .on_submit(Message::Save(false))
                     .line_height(LINE_HEIGHT)
                     .size(TEXT_SIZE)
                     .width(UNIT_WIDTH * 3.0)
