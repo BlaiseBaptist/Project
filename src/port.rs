@@ -35,22 +35,11 @@ pub mod port {
         current_port_read: usize,
     }
     impl PhysicalPort {
-        fn new(
-            port: Box<dyn serialport::SerialPort>,
-            internal_ports: usize,
-            name: String,
-            starting_values: &[[u8; 4]],
-        ) -> Self {
+        fn new(port: Box<dyn serialport::SerialPort>, internal_ports: usize, name: String) -> Self {
             let mut values = Vec::with_capacity(internal_ports);
             for _ in 0..internal_ports {
                 let (sender, receiver) = mpsc::channel::<Item>();
                 values.push((sender, Some(receiver)));
-            }
-            for (i, value) in starting_values.iter().enumerate() {
-                values[i % internal_ports]
-                    .0
-                    .send(*value)
-                    .expect("how did you get here? (failed to send to newly created port)");
             }
             PhysicalPort {
                 port,
@@ -67,12 +56,14 @@ pub mod port {
                 name: format!("{} split {}", self.name.clone(), self.current_port_read),
             }))
         }
-        fn step_at(mut self, time: Duration) -> Option<String> {
+        fn step_at(mut self) -> Option<String> {
             std::thread::spawn(move || loop {
                 if !self.next() {
                     return Some("port closed");
                 }
-                std::thread::sleep(time);
+                std::thread::sleep(
+                    Duration::from_secs(1) / self.port.baud_rate().expect("no baud rate"),
+                );
             });
             None
         }
@@ -95,41 +86,41 @@ pub mod port {
     pub fn from_string(
         s: &str,
         internal_ports: usize,
-        values: Option<&[Item]>,
+        values: Option<std::fs::File>,
     ) -> Vec<Box<dyn Port>> {
         let mut main_port = match values {
             Some(v) => PhysicalPort::new(
-                Box::new(RealDummyPort::new(false)),
+                Box::new(RealDummyPort::new(Some(v))),
                 internal_ports,
                 s.to_string(),
-                v,
             ),
             None => PhysicalPort::new(
                 serialport::new(s, 9600)
                     .open()
-                    .unwrap_or(Box::new(RealDummyPort::new(true))),
+                    .unwrap_or(Box::new(RealDummyPort::new(None))),
                 internal_ports,
                 s.to_string(),
-                &[],
             ),
         };
         let return_val = (0..internal_ports)
             .map(|_| main_port.split().unwrap())
             .collect();
-        main_port.step_at(Duration::from_micros(1000));
+        main_port.step_at();
         return return_val;
     }
     pub struct RealDummyPort {
         value: Item,
         value_count: usize,
-        send: bool,
+        file: Option<std::fs::File>,
+        baud_rate: u32,
     }
     impl RealDummyPort {
-        fn new(on: bool) -> Self {
+        fn new(file: Option<std::fs::File>) -> Self {
             RealDummyPort {
                 value: [0; 4],
+                file: file,
                 value_count: 0,
-                send: on,
+                baud_rate: 1000,
             }
         }
     }
@@ -137,23 +128,30 @@ pub mod port {
     impl _AssertSend<RealDummyPort> {}
     impl std::io::Read for RealDummyPort {
         fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-            if self.send {
-                self.value_count += 1;
-                self.value = ((self.value_count as f32) / 100.0).sin().to_be_bytes();
-                for x in 0..4 {
-                    buf[x] = self.value[x];
+            match &mut self.file {
+                Some(file) => file.read(buf),
+                None => {
+                    self.value_count += 1;
+                    self.value = ((self.value_count as f32) / 100.0).sin().to_be_bytes();
+                    for x in 0..4 {
+                        buf[x] = self.value[x];
+                    }
+                    Ok(4)
                 }
-                return Ok(4);
             }
-            Ok(0)
         }
     }
     impl std::io::Write for RealDummyPort {
         fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-            for x in 0..4 {
-                self.value[x] = buf[x]
+            match &mut self.file {
+                Some(file) => file.write(buf),
+                None => {
+                    for x in 0..4 {
+                        self.value[x] = buf[x]
+                    }
+                    Ok(4)
+                }
             }
-            Ok(4)
         }
         fn flush(&mut self) -> Result<(), std::io::Error> {
             todo!()
@@ -164,8 +162,7 @@ pub mod port {
             Some("dummy".to_string())
         }
         fn baud_rate(&self) -> Result<u32, serialport::Error> {
-            Ok(0)
-            //inf
+            Ok(self.baud_rate)
         }
         fn data_bits(&self) -> Result<serialport::DataBits, serialport::Error> {
             Ok(serialport::DataBits::Eight)
@@ -182,7 +179,8 @@ pub mod port {
         fn timeout(&self) -> Duration {
             Duration::MAX
         }
-        fn set_baud_rate(&mut self, _baud_rate: u32) -> Result<(), serialport::Error> {
+        fn set_baud_rate(&mut self, baud_rate: u32) -> Result<(), serialport::Error> {
+            self.baud_rate = baud_rate;
             Ok(())
         }
         fn set_data_bits(
@@ -228,11 +226,7 @@ pub mod port {
             Ok(true)
         }
         fn bytes_to_read(&self) -> Result<u32, serialport::Error> {
-            if self.send {
-                Ok(1024)
-            } else {
-                Ok(0)
-            }
+            Ok(1024)
             //inf
         }
         fn bytes_to_write(&self) -> Result<u32, serialport::Error> {
@@ -246,7 +240,7 @@ pub mod port {
             Ok(())
         }
         fn try_clone(&self) -> Result<Box<dyn serialport::SerialPort>, serialport::Error> {
-            Ok(Box::new(RealDummyPort::new(self.send)))
+            Ok(Box::new(RealDummyPort::new(None)))
         }
         fn set_break(&self) -> Result<(), serialport::Error> {
             Ok(())

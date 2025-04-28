@@ -6,11 +6,7 @@ use iced::{
     },
     Fill, Subscription,
 };
-use std::{
-    fs,
-    io::{Read, Write},
-    time::Duration,
-};
+use std::{fs, io::Write, time::Duration};
 mod graph;
 mod port;
 mod style;
@@ -196,23 +192,9 @@ impl App {
             },
             Message::ChangeNumberOfPorts(internal_ports) => self.internal_ports = internal_ports,
             Message::OpenBuffer => {
-                let mut file = fs::File::open(".buffer").expect("no buffer");
-                let mut buf: Vec<u8> = Vec::new();
-                file.read_to_end(&mut buf).unwrap();
-                let values: Vec<[u8; 4]> = buf
-                    .as_slice()
-                    .chunks_exact(4)
-                    .map(|x| x.try_into().unwrap())
-                    .collect();
-                for buf_port in from_string("buffer", self.internal_ports, Some(&values)) {
+                let file = fs::File::open(".buffer").expect("no buffer");
+                for buf_port in from_string("buffer", self.internal_ports, Some(file)) {
                     self.open_ports.push(buf_port);
-                    // self.panes
-                    //     .split(
-                    //         pane_grid::Axis::Horizontal,
-                    //         pane,
-                    //         Pane::Graph(Graph::new(buf_port)),
-                    //     )
-                    //     .unwrap();
                 }
                 self.status_message = "Open Graph From buffer".to_string();
                 self.open_delay = 10;
