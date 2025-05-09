@@ -102,9 +102,10 @@ pub mod port {
                 s.to_string(),
             ),
         };
-        let _ = main_port.port.write(&[19]);
-        let _ = main_port.port.read_to_end(&mut vec![]);
-        let _ = main_port.port.write(&[17]);
+        let _ = main_port.port.set_break();
+        let bytes_to_read: usize = main_port.port.bytes_to_read().unwrap().try_into().unwrap();
+        let _ = main_port.port.read_exact(&mut vec![0_u8; bytes_to_read]);
+        let _ = main_port.port.clear_break();
         let return_val = (0..internal_ports)
             .map(|_| main_port.split().unwrap())
             .collect();
